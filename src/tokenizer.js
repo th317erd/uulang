@@ -10,6 +10,32 @@ function defineProperty(writable, parent, name, value) {
 const definePropertyRO = defineProperty.bind(this, false);
 const definePropertyRW = defineProperty.bind(this, true);
 
+function noe() {
+  function isNOE(value) {
+    if (value === null || value === undefined)
+      return true;
+  
+    if ((typeof value === 'number' || value instanceof Number) && (isNaN(value) || !isFinite(value)))
+      return true;
+  
+    if ((typeof value === 'string' || value instanceof String) && (value.length === 0 || value.trim().length === 0))
+      return true;
+  
+    if (value instanceof Array && value.length === 0)
+      return true;
+  
+    return !value;
+  }
+
+  for (var i = 0, il = arguments.length; i < il; i++) {
+    var val = arguments[i];
+    if (isNOE(val))
+      return true;
+  }
+
+  return false;
+}
+
 function isValidNum(num) {
   if (num === undefined || num === null)
     return false;
@@ -21,7 +47,7 @@ function isValidNum(num) {
 }
 
 class Position {
-  static create(_start, _end, _length) {
+  constructor(_start, _end, _length) {
     function smallest() {
       for (var num, i = 0, il = arguments.length; i < il; i++) {
         var x = arguments[i];
@@ -46,15 +72,15 @@ class Position {
       if (_position === undefined)
         return;
 
-      var position = new Position(0);
+      var position = _position;
       if (_position !== undefined) {
         if (_position instanceof Position) {
-          position = _position.clone();
+          position = _position;
         } else if ((_position instanceof Number || typeof _position === 'number') && !isNaN(_position) && isFinite(_position)) {
           if (_position < 0 && length !== undefined)
-            position = new Position(length + _position);
+            position = length + _position;
           else
-            position = new Position(_position);
+            position = _position;
         }
       }
 
@@ -64,24 +90,14 @@ class Position {
     var start = getPosition(_start, _length),
         end = getPosition(_end, _length);
 
-    if (start === undefined && end === undefined)
-      return new Position(0);
-    else if (start === undefined)
-      return end;
-    else if (end === undefined)
-      return start;
+    if (start instanceof Position)
+      start = start.start;
 
-    return new Position(smallest(start.start, start.end, end.start, end.end), largest(start.start, start.end, end.start, end.end));
-  }
+    if (end instanceof Position)
+      end = (noe(end.end)) ? end.start : end.end;
 
-  constructor(start, end) {
-    this.start = start || 0;
+    this.start = start;
     this.end = end;
-
-    if (isValidNum(start) && isValidNum(end) && start > end) {
-      this.start = end;
-      this.end = start;
-    }
   }
 
   length() {
@@ -98,63 +114,71 @@ class Position {
 };
 
 class Token {
-  static create(type, source, position, value, rawValue, args) {
-    var token = new Token(...(args || []));
-    token.type = type;
-    token.source = source;
-    token.position = position;
-    token.value = value;
-    token.rawValue = (rawValue === undefined) ? value : rawValue;
-
-    return token;
-  }
-
   constructor(...args) {
-    definePropertyRW(this, 'type', null);
-    definePropertyRW(this, 'source', null);
-    definePropertyRW(this, 'position', null);
-    definePropertyRW(this, 'value', null);
-    definePropertyRW(this, 'rawValue', null);
+    definePropertyRW(this, 'type', '<undefined>');
     definePropertyRW(this, 'args', args);
   }
 
   match() {}
+}
 
-  clone() {
-    return Token.create(this.type, this.source, this.position, this.value, this.rawValue, this.args);
-  }
-};
-
-function functionTokenFactory(name, func) {
-  var Klass = class FuncToken extends Token {
-    static create(source, position, value, rawValue, args) {
-      var token = new Klass(...(args || []));
-      token.source = source;
-      token.position = position;
-      token.value = value;
-      token.rawValue = (rawValue === undefined) ? value : rawValue;
-
-      return token;
+class Result {
+  constructor(_opts) {
+    var opts = _opts || {};
+    if (noe(opts.type, opts.source, opts.position) || !opts.hasOwnProperty('value')) {
+      console.error(opts);
+      throw new Error('type, source, position, and value are required for Result');
     }
 
+    definePropertyRO(this, 'type', opts.type);
+    definePropertyRO(this, 'source', opts.source);
+    definePropertyRO(this, 'position', opts.position);
+    definePropertyRO(this, 'value', opts.value);
+    definePropertyRO(this, 'success', !!opts.success);
+
+    var keys = Object.keys(opts);
+    for (var i = 0, il = keys.length; i < il; i++) {
+      var key = keys[i];
+      if (key === 'type' || key === 'source' || key === 'position' || key === 'value' || key === 'success')
+        continue;
+
+      this[key] = opts[key];
+    }
+  }
+
+  toString() {
+    return (this.value || this.rawValue);
+  }
+}
+
+function createFunctionToken(name, func) {
+  var Klass = class FuncToken extends Token {
     constructor(...args) {
       super(...args);
       this.type = name;
     }
 
-    match() {
-      return func.call(this, ...(this.args || []));
-    }
-
-    clone() {
-      return Klass.create(this.source, this.position, this.value, this.rawValue, this.args);
+    match(stream) {
+      var streamClone = new TokenStream(stream),
+          ret = func.call(this, streamClone, ...(this.args || []));
+      
+      if (ret instanceof Result) {
+        if (ret.success)
+          stream.seek(streamClone.getPosition());
+        else
+          return;
+      }
+      
+      return ret;
     }
   };
 
-  return Klass;
+  return function(...args) {
+    return new Klass(...args);
+  };
 }
 
-function regularExpressionTokenFactory(name, _regexp, _matchIndex) {
+function createREToken(name, _regexp, _matchIndex) {
   function getFlags(flags) {
     var finalFlags = [];
     for (var i = 0, il = flags.length; i < il; i++) {
@@ -175,16 +199,6 @@ function regularExpressionTokenFactory(name, _regexp, _matchIndex) {
       matchIndex = _matchIndex || 1;
 
   var Klass = class RegExpToken extends Token {
-    static create(source, position, value, rawValue, args) {
-      var token = new Klass(...(args || []));
-      token.source = source;
-      token.position = position;
-      token.value = value;
-      token.rawValue = (rawValue === undefined) ? value : rawValue;
-
-      return token;
-    }
-
     constructor(...args) {
       super(...args);
       this.type = name;
@@ -192,57 +206,77 @@ function regularExpressionTokenFactory(name, _regexp, _matchIndex) {
       definePropertyRO(this, '_regexp', new RegExp(reSource, reFlags));
     }
 
-    match() {
-      var startPos = this.position.start;
-      this.regexp.lastIndex = startPos;
+    match(stream) {
+      var startPos = stream.position();
+      regexp.lastIndex = startPos;
 
-      var str = this.source.toString(),
-          match = this.regexp.exec(str);
+      var str = stream.toString(),
+          match = regexp.exec(str);
+
+      console.log('RegExp match: ', str, startPos, match);
       
       //console.log('Src: ', startPos, str, match, '[' + str.substring(startPos, startPos + 4) + ']');
-      if (match && match.index === startPos)
-        return Klass.create(this.source, new Position(startPos, startPos + match[0].length), (match[matchIndex] || match[0]), match[0], this.args);
-    }
+      if (match && match.index === startPos) {
+        stream.seekRaw(match[0].length);
 
-    clone() {
-      return Klass.create(this.source, this.position, this.value, this.rawValue, this.args);
+        return new Result({
+          type: this.type,
+          source: stream,
+          position: new Position(startPos, startPos + match[0].length),
+          value: (matchIndex instanceof Function) ? matchIndex.call(this, ...match, startPos, stream) : (match[matchIndex] || match[0]),
+          rawValue: match,
+          success: true
+        });
+      }
     }
   };
 
-  return Klass;
+  return function(...args) {
+    return new Klass(...args);
+  };
 }
 
 class TokenStream {
   constructor(content) {
     definePropertyRW(this, '__stringCacheInvalid', true);
     definePropertyRW(this, '__stringCache', '');
+    definePropertyRW(this, '__eos', false);
 
-    var tokens;
+    var tokens,
+        position;
 
     if (content instanceof String || typeof content === 'string') {
       tokens = new Array(content.length);
       for (var i = 0, il = content.length; i < il; i++) {
         var c = content.charAt(i);
-        tokens[i] = Token.create('CHAR', content, new Position(i, i + 1), c);
+        tokens[i] = new Result({
+          type: 'CHAR',
+          source: this,
+          position: new Position(i, i + 1),
+          value: c,
+          success: true
+        });
       }
 
-      this._stringCacheInvalid = true;
+      this._stringCache = content;
+      this._stringCacheInvalid = false;
     } else if (content instanceof TokenStream) {
-      tokens = content.tokens.slice();
+      tokens = content.tokens().slice();
+      position = new Position(content.getPosition());
     } else if (content instanceof Array) {
       tokens = content.slice();
     } else {
       tokens = [];
     }
 
-    definePropertyRW(this, 'position', new Position(0, 0));
-    definePropertyRW(this, 'tokens', tokens);
+    definePropertyRW(this, '__position', (!position) ? new Position(0, 0) : position);
+    definePropertyRW(this, '__tokens', tokens);
   }
 
   toString() {
     if (this._stringCacheInvalid) {
       this._stringCacheInvalid = false;
-      var stringCache = this._stringCache = (this.tokens.map((token) => token.rawValue)).join('');
+      var stringCache = this._stringCache = (this._tokens.map((result) => result.toString())).join('');
       return stringCache;
     } else {
       return this._stringCache;
@@ -250,45 +284,55 @@ class TokenStream {
   }
 
   length() {
-    return this.tokens.length;
+    return this._tokens.length;
   }
 
   push(token) {
     this._stringCacheInvalid = true;
-    this.tokens.push(token);
+    this._tokens.push(token);
   }
 
   seek(_position) {
-    this.position = Position.create(_position);
+    this._position = new Position(_position);
+  }
+
+  seekRaw(_position) {
+    //TODO: In the future handle raw chars / vs tokens
+    this.seek(_position);
+  }
+
+  tokens() {
+    return (this._tokens || []);
+  }
+
+  position() {
+    return this._position.start;
+  }
+
+  getPosition() {
+    return this._position;
   }
 
   get(_position) {
-    var position = Position.create(_position, undefined, this.length());
-    console.log('Position: ', position, this.length());
+    if (arguments.length === 0)
+      return this._tokens[this._position.start];
+
+    var position = new Position(_position, undefined, this.length());
     if (position.end === undefined)
-      return this.tokens[position.start];
+      return this._tokens[position.start];
     
-    return new TokenStream(this.tokens.slice(position.start, position.end));
+    return new TokenStream(this._tokens.slice(position.start, position.end));
   }
 
-  consume(types) {
-    for (var i = 0, il = types.length; i < il; i++) {
-      var tokenType = types[i];
-      
-      tokenType.source = this;
-      tokenType.position = this.position;
+  close(set) {
+    if (arguments.length > 0)
+      this._eos = !!set;
 
-      console.log('Token Type: ', tokenType);
-      var token = tokenType.match();
-      if (token) {
-        this.position = new Position(token.position.next());
-        return token;
-      }
-    }
+    return this._eos;
   }
 };
 
-class Tokenizer {
+/*class Tokenizer {
   constructor(_opts) {
     var opts = (_opts || {});
 
@@ -297,48 +341,187 @@ class Tokenizer {
 
   parse(content, position) {
     var inStream = new TokenStream(content),
-        outStream = new TokenStream();
+        outStream = new TokenStream(),
+        token;
 
     if (position !== undefined)
       inStream.seek(position);
 
-    var token = inStream.consume(this.types);
-    while(token) {
-      outStream.push(token); 
-      token = inStream.consume(this.types); 
-    }
+    while((token = inStream.consume(outStream, this.types)))
+      outStream.push(token);
+
+    if (inStream.done())
+      outStream.done(true);
 
     return outStream;
   }
-};
+};*/
 
-const WHITESPACE = regularExpressionTokenFactory('WHITESPACE', /(\s+)/),
-      CHAR = functionTokenFactory('CHAR', function(matchChar) {
-        var firstToken = this.source.get(this.position.start);
-        if ((firstToken && matchChar === undefined) || (firstToken.type === 'CHAR' && firstToken.rawValue === matchChar))
-          return firstToken;
-      }),
-      WORD = regularExpressionTokenFactory('WORD', /(\w+)/),
-      FOLLOWING = functionTokenFactory('FOLLOWING', function(token) {
-        var startPos = this.position.start,
-            firstToken = this.source.get(startPos);
+function createToken(name, helper) {
+  if (helper instanceof RegExp || (helper instanceof String || typeof helper === 'string')) {
+    return createREToken(name, helper);
+  } else if (helper instanceof Function) {
+    return createFunctionToken(name, helper);
+  } else if (helper instanceof Array) {
+    return function() {
+      return ALL(...helper);
+    };
+  }
+}
 
-        if (firstToken && firstToken.type === token.type) {
-          token.source = this.source;
-          token.position = this.position;
-          if (token.match()) {
-            var secondToken = this.source.get(startPos + 1);
-            return (secondToken) ? secondToken.clone() : undefined;
+const ALL = createFunctionToken('ALL', function(stream, ...args) {
+        var startPos = stream.position(),
+            tokens = [].concat(...args),
+            finalResult = [],
+            success = true;
+        
+        for (var i = 0, il = tokens.length; i < il; i++) {
+          var token = tokens[i];
+          if (!token || !(token instanceof Token))
+            continue;
+
+          var match = token.match.call(this, stream);
+          if (!match || !(match instanceof Result)) {
+            success = false;
+            break;
           }
+
+          finalResult.push(match);
+        }
+
+        return new Result({
+          type: 'ALL',
+          source: stream,
+          position: new Position(startPos, stream.position()),
+          value: new TokenStream(finalResult),
+          success: success
+        });
+      }),
+      ANY = createFunctionToken('ANY', function(stream, ...args) {
+        var startPos = stream.position(),
+            tokens = [].concat(...args),
+            finalResult = [];
+        
+        for (var i = 0, il = tokens.length; i < il; i++) {
+          var token = tokens[i];
+          if (!token || !(token instanceof Token))
+            continue;
+
+          var match = token.match.call(this, stream);
+          console.log('Matching', token.type, match);
+          if (match && (match instanceof Result))
+            finalResult.push(match);
+        }
+
+        return new Result({
+          type: 'ANY',
+          source: stream,
+          position: new Position(startPos, stream.position()),
+          value: new TokenStream(finalResult),
+          success: (finalResult.length > 0)
+        });
+      }),
+      REPEAT = createFunctionToken('REPEAT', function(stream, token, min, max) {
+        var startPos = stream.position(),
+            finalResult = [],
+            success = true;
+
+        if (token && (token instanceof Token)) {
+          var match = token.match.call(this, stream);
+          if (match && (match instanceof Result))
+            finalResult.push(match);
+          else
+            success = false;
+        }
+        
+        if (min && finalResult.length < min)
+          success = false;
+
+        if (max && finalResult.length > max)
+          success = false;
+
+        return new Result({
+          type: 'REPEAT',
+          source: stream,
+          position: new Position(startPos, stream.position()),
+          value: new TokenStream(finalResult),
+          success: success
+        });
+      }),
+      NOT = createFunctionToken('NOT', function(stream, token) {
+        var startPos = stream.position(),
+            ret = (token && token instanceof Token) ? token.match.call(this, stream) : token;
+
+        if (ret instanceof Result && !ret.success) {
+          return new Result(Object.assign({}, ret, {
+            type: ret.type,
+            source: ret.stream,
+            position: new Position(ret.position),
+            value: ret.value,
+            success: true
+          }));
         }
       }),
+      FIRST = createFunctionToken('FIRST', function(stream, token) {
+        var startPos = stream.position(),
+            tokens = [].concat(...args),
+            finalResult;
+        
+        for (var i = 0, il = tokens.length; i < il; i++) {
+          var token = tokens[i];
+          if (!token || !(token instanceof Token))
+            continue;
+
+          var match = token.match.call(this, stream);
+          if (match && (match instanceof Result)) {
+            finalResult =match;
+            break;
+          }
+        }
+
+        return new Result({
+          type: 'FIRST',
+          source: stream,
+          position: new Position(startPos, stream.position()),
+          value: finalResult,
+          success: !!finalResult
+        });
+      }),
+      WHITESPACE = createREToken('WHITESPACE', /(\s+)/),
+      CHAR = createFunctionToken('CHAR', function(stream, matchChar) {
+        var firstToken = stream.get(),
+            success = true;
+        
+        if (matchChar) {
+          var matchCharValue = (matchChar instanceof Result) ? matchChar.value : matchChar,
+              firstTokenValue = (firstToken instanceof Result) ? firstToken.value : firstToken;
+
+          if (firstTokenValue !== matchCharValue)
+            success = false;
+        }
+
+        return new Result({
+          type: 'CHAR',
+          source: stream,
+          position: new Position(startPos, stream.position()),
+          value: firstToken,
+          success: success
+        });
+      }),
+      WORD = createREToken('WORD', /(\w+)/),
       REGEXP = function(regexp) {
-        var Klass = regularExpressionTokenFactory('REGEXP', regexp);
+        var Klass = createREToken('REGEXP', regexp);
         return new Klass();
+      },
+      FOLLOWING = function() {
+        return FIRST(
+          NOT(CHAR('\\')),
+          CHAR()
+        );
       };
 
 function stringMatcherFactory(tokenType, stringChar) {
-  function matcher() {
+  /*function matcher() {
     var firstToken = this.source.get(this.position.start);
     if (!firstToken || firstToken.type !== 'CHAR' || firstToken.rawValue !== stringChar)
       return;
@@ -359,21 +542,49 @@ function stringMatcherFactory(tokenType, stringChar) {
         value = outStream.toString();
     
     return Klass.create(this.source, sourcePosition, value, rawValue);
-  }
+  }*/
 
-  var Klass = functionTokenFactory(tokenType, matcher);
-  return Klass;
+  //var Klass = createFunctionToken(tokenType, matcher);
+  //return Klass;
+
+  return function() {
+    return ALL(
+      CHAR(stringChar),
+      REPEAT(FIRST(FOLLOWING(CHAR('\\')), NOT(CHAR(stringChar)))),
+      CHAR(stringChar)
+    );
+  };
 }
 
 const TOKENS = {
+  ALL,
+  ANY,
+  NOT,
+  REPEAT,
+  FIRST,
   WHITESPACE,
+  CHAR,
   WORD,
+  FOLLOWING,
+  REGEXP,
   STRING_DQ: stringMatcherFactory('STRING_DQ', '"'),
   STRING_SQ: stringMatcherFactory('STRING_SQ', "'"),
   STRING_BT: stringMatcherFactory('STRING_BT', "`")
 };
 
+function parse(_stream, token) {
+  if (!token || !(token instanceof Token))
+    return;
+
+  return token.match(new TokenStream(_stream));
+}
+
 module.exports = Object.assign({
-  Tokenizer,
+  Position,
+  Token,
+  Result,
+  TokenStream,
+  createToken,
+  parse,
   TOKENS
 }, TOKENS);
