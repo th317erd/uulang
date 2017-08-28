@@ -90,8 +90,11 @@ class Position {
     var start = getPosition(_start, _length),
         end = getPosition(_end, _length);
 
-    if (start instanceof Position)
+    if (start instanceof Position) {
+      if (!end)
+        end = start.end;
       start = start.start;
+    }
 
     if (end instanceof Position)
       end = (noe(end.end)) ? end.start : end.end;
@@ -114,9 +117,8 @@ class Position {
 };
 
 class Token {
-  constructor(...args) {
-    definePropertyRW(this, 'type', '<undefined>');
-    definePropertyRW(this, 'args', args);
+  constructor(type) {
+    definePropertyRW(this, 'type', (type) ? type : '<undefined>');
   }
 
   match() {}
@@ -147,93 +149,8 @@ class Result {
   }
 
   toString() {
-    return (this.value || this.rawValue);
+    return (this.value || this.rawValue).toString();
   }
-}
-
-function createFunctionToken(name, func) {
-  var Klass = class FuncToken extends Token {
-    constructor(...args) {
-      super(...args);
-      this.type = name;
-    }
-
-    match(stream) {
-      var streamClone = new TokenStream(stream),
-          ret = func.call(this, streamClone, ...(this.args || []));
-      
-      if (ret instanceof Result) {
-        if (ret.success)
-          stream.seek(streamClone.getPosition());
-        else
-          return;
-      }
-      
-      return ret;
-    }
-  };
-
-  return function(...args) {
-    return new Klass(...args);
-  };
-}
-
-function createREToken(name, _regexp, _matchIndex) {
-  function getFlags(flags) {
-    var finalFlags = [];
-    for (var i = 0, il = flags.length; i < il; i++) {
-      var flag = flags.charAt(i);
-      if (finalFlags.indexOf(flag) < 0)
-        finalFlags.push(flag);
-    }
-
-    if (finalFlags.indexOf('g') < 0)
-      finalFlags.push('g');
-
-    return finalFlags;
-  }
-
-  var regexp = (_regexp instanceof String || typeof _regexp === 'string') ? new RegExp(_regexp, 'g') : _regexp,
-      reSource = regexp.source,
-      reFlags = getFlags(regexp.flags),
-      matchIndex = _matchIndex || 1;
-
-  var Klass = class RegExpToken extends Token {
-    constructor(...args) {
-      super(...args);
-      this.type = name;
-
-      definePropertyRO(this, '_regexp', new RegExp(reSource, reFlags));
-    }
-
-    match(stream) {
-      var startPos = stream.position();
-      regexp.lastIndex = startPos;
-
-      var str = stream.toString(),
-          match = regexp.exec(str);
-
-      console.log('RegExp match: ', str, startPos, match);
-      
-      //console.log('Src: ', startPos, str, match, '[' + str.substring(startPos, startPos + 4) + ']');
-      if (match && match.index === startPos) {
-        stream.seekRaw(match[0].length);
-
-        return new Result({
-          type: this.type,
-          source: stream,
-          position: new Position(startPos, startPos + match[0].length),
-          value: (matchIndex instanceof Function) ? matchIndex.call(this, ...match, startPos, stream) : (match[matchIndex] || match[0]),
-          rawValue: match,
-          success: true
-        });
-      }
-    }
-  };
-
-  return function(...args) {
-    return new Klass(...args);
-  };
 }
 
 class TokenStream {
@@ -249,13 +166,13 @@ class TokenStream {
       tokens = new Array(content.length);
       for (var i = 0, il = content.length; i < il; i++) {
         var c = content.charAt(i);
-        tokens[i] = new Result({
+        tokens[i] = c;/*new Result({
           type: 'CHAR',
           source: this,
           position: new Position(i, i + 1),
           value: c,
           success: true
-        });
+        });*/
       }
 
       this._stringCache = content;
@@ -276,6 +193,7 @@ class TokenStream {
   toString() {
     if (this._stringCacheInvalid) {
       this._stringCacheInvalid = false;
+
       var stringCache = this._stringCache = (this._tokens.map((result) => result.toString())).join('');
       return stringCache;
     } else {
@@ -315,13 +233,17 @@ class TokenStream {
 
   get(_position) {
     if (arguments.length === 0)
-      return this._tokens[this._position.start];
+      return this._tokens[this._position.start++];
 
     var position = new Position(_position, undefined, this.length());
     if (position.end === undefined)
       return this._tokens[position.start];
     
     return new TokenStream(this._tokens.slice(position.start, position.end));
+  }
+
+  eof() {
+    return (this._position.start >= this._tokens.length);
   }
 
   close(set) {
@@ -332,36 +254,96 @@ class TokenStream {
   }
 };
 
-/*class Tokenizer {
-  constructor(_opts) {
-    var opts = (_opts || {});
+function createFunctionToken(name, func, resultFormatter) {
+  return function(...args) {
+    class FuncToken extends Token {
+      constructor() {
+        super(name);
+      }
+  
+      match(stream) {
+        var startPos = stream.position(),
+            streamClone = new TokenStream(stream),
+            ret = func.call(this, streamClone, ...(args || []));
+        
+        if (ret instanceof Result) {
+          var endPos = (ret.position && (ret.position.end || ret.position.start));
+          if (startPos !== endPos && ret.success)
+            stream.seek(endPos);
+        }
+        
+        return (ret && resultFormatter instanceof Function) ? resultFormatter(ret) : ret;
+      }
+    };
 
-    Object.assign(this, opts);
+    return new FuncToken();
+  };
+}
+
+function createREToken(name, _regexp, _matchIndex, resultFormatter) {
+  function getFlags(flags) {
+    var finalFlags = [];
+    for (var i = 0, il = flags.length; i < il; i++) {
+      var flag = flags.charAt(i);
+      if (finalFlags.indexOf(flag) < 0)
+        finalFlags.push(flag);
+    }
+
+    if (finalFlags.indexOf('g') < 0)
+      finalFlags.push('g');
+
+    return finalFlags;
   }
 
-  parse(content, position) {
-    var inStream = new TokenStream(content),
-        outStream = new TokenStream(),
-        token;
+  var regexp = (_regexp instanceof String || typeof _regexp === 'string') ? new RegExp(_regexp, 'g') : _regexp,
+      reSource = regexp.source,
+      reFlags = getFlags(regexp.flags),
+      matchIndex = _matchIndex || 1;
 
-    if (position !== undefined)
-      inStream.seek(position);
+  return function(...args) {
+    var RE = new RegExp(reSource, reFlags);
+    class RegExpToken extends Token {
+      constructor() {
+        super(name);
+  
+        definePropertyRO(this, '_regexp', RE);
+      }
+  
+      match(stream) {
+        var startPos = stream.position();
+        RE.lastIndex = startPos;
+  
+        var str = stream.toString(),
+            match = RE.exec(str);
+  
+        //console.log('Src: ', startPos, str, match, '[' + str.substring(startPos, startPos + 4) + ']');
+        if (match && match.index === startPos) {
+          var endPos = startPos + match[0].length;
+          stream.seekRaw(endPos);
+  
+          var result = new Result({
+            type: name,
+            source: stream,
+            position: new Position(startPos, endPos),
+            value: (matchIndex instanceof Function) ? matchIndex.call(this, ...match, startPos, stream) : (match[matchIndex] || match[0]),
+            rawValue: match,
+            success: true
+          });
 
-    while((token = inStream.consume(outStream, this.types)))
-      outStream.push(token);
+          return (resultFormatter instanceof Function) ? resultFormatter(result) : result;
+        }
+      }
+    };
 
-    if (inStream.done())
-      outStream.done(true);
+    return new RegExpToken();
+  };
+}
 
-    return outStream;
-  }
-};*/
-
-function createToken(name, helper) {
+function createToken(name, helper, ...args) {
   if (helper instanceof RegExp || (helper instanceof String || typeof helper === 'string')) {
-    return createREToken(name, helper);
+    return createREToken(name, helper, ...args);
   } else if (helper instanceof Function) {
-    return createFunctionToken(name, helper);
+    return createFunctionToken(name, helper, ...args);
   } else if (helper instanceof Array) {
     return function() {
       return ALL(...helper);
@@ -375,63 +357,70 @@ const ALL = createFunctionToken('ALL', function(stream, ...args) {
             finalResult = [],
             success = true;
         
-        for (var i = 0, il = tokens.length; i < il; i++) {
+        for (var i = 0, il = tokens.length; (i < il) && !stream.eof(); i++) {
           var token = tokens[i];
           if (!token || !(token instanceof Token))
             continue;
 
-          var match = token.match.call(this, stream);
-          if (!match || !(match instanceof Result)) {
+          var match = token.match(stream);
+          if (!match || (match instanceof Result && !match.success)) {
             success = false;
             break;
           }
 
-          finalResult.push(match);
+          finalResult = finalResult.concat(match);
         }
 
         return new Result({
           type: 'ALL',
           source: stream,
           position: new Position(startPos, stream.position()),
-          value: new TokenStream(finalResult),
+          value: finalResult,
+          rawValue: new TokenStream(finalResult),
           success: success
         });
-      }),
+      }, (result) => (result.success && result.value)),
       ANY = createFunctionToken('ANY', function(stream, ...args) {
         var startPos = stream.position(),
             tokens = [].concat(...args),
             finalResult = [];
         
-        for (var i = 0, il = tokens.length; i < il; i++) {
+        for (var i = 0, il = tokens.length; (i < il) && !stream.eof(); i++) {
           var token = tokens[i];
           if (!token || !(token instanceof Token))
             continue;
 
-          var match = token.match.call(this, stream);
-          console.log('Matching', token.type, match);
-          if (match && (match instanceof Result))
-            finalResult.push(match);
+          var match = token.match(stream);
+          if (!match || (match instanceof Result && !match.success))
+            continue;
+
+          finalResult = finalResult.concat(match);
         }
 
         return new Result({
           type: 'ANY',
           source: stream,
           position: new Position(startPos, stream.position()),
-          value: new TokenStream(finalResult),
+          value: finalResult,
+          rawValue: new TokenStream(finalResult),
           success: (finalResult.length > 0)
         });
-      }),
+      }, (result) => (result.success && result.value)),
       REPEAT = createFunctionToken('REPEAT', function(stream, token, min, max) {
         var startPos = stream.position(),
             finalResult = [],
-            success = true;
+            success = false;
 
         if (token && (token instanceof Token)) {
-          var match = token.match.call(this, stream);
-          if (match && (match instanceof Result))
-            finalResult.push(match);
-          else
-            success = false;
+          success = true;
+
+          while(!stream.eof()) {
+            var match = token.match(stream);
+            if (!match || (match instanceof Result && !match.success))
+              break;
+
+            finalResult = finalResult.concat(match);
+          }
         }
         
         if (min && finalResult.length < min)
@@ -444,52 +433,60 @@ const ALL = createFunctionToken('ALL', function(stream, ...args) {
           type: 'REPEAT',
           source: stream,
           position: new Position(startPos, stream.position()),
-          value: new TokenStream(finalResult),
+          value: finalResult,
+          rawValue: new TokenStream(finalResult),
           success: success
         });
-      }),
+      }, (result) => (result.success && result.value)),
       NOT = createFunctionToken('NOT', function(stream, token) {
         var startPos = stream.position(),
-            ret = (token && token instanceof Token) ? token.match.call(this, stream) : token;
+            ret = (token && token instanceof Token) ? token.match(stream) : token;
 
         if (ret instanceof Result && !ret.success) {
           return new Result(Object.assign({}, ret, {
             type: ret.type,
-            source: ret.stream,
+            source: stream,
             position: new Position(ret.position),
             value: ret.value,
+            rawValue: ret.value,
             success: true
           }));
         }
       }),
-      FIRST = createFunctionToken('FIRST', function(stream, token) {
+      FIRST = createFunctionToken('FIRST', function(stream, ...args) {
         var startPos = stream.position(),
             tokens = [].concat(...args),
             finalResult;
         
-        for (var i = 0, il = tokens.length; i < il; i++) {
+        for (var i = 0, il = tokens.length; (i < il) && !stream.eof(); i++) {
           var token = tokens[i];
           if (!token || !(token instanceof Token))
             continue;
 
-          var match = token.match.call(this, stream);
-          if (match && (match instanceof Result)) {
-            finalResult =match;
-            break;
-          }
+          var match = token.match(stream);
+          if (!match || (match instanceof Result && !match.success))
+            continue;
+
+          finalResult = match;
+          break;
         }
 
+        if (!finalResult)
+          return;
+
         return new Result({
-          type: 'FIRST',
+          type: finalResult.type,
           source: stream,
           position: new Position(startPos, stream.position()),
-          value: finalResult,
-          success: !!finalResult
+          value: finalResult.value,
+          rawValue: finalResult.rawValue,
+          success: finalResult.success
         });
       }),
       WHITESPACE = createREToken('WHITESPACE', /(\s+)/),
       CHAR = createFunctionToken('CHAR', function(stream, matchChar) {
-        var firstToken = stream.get(),
+        var startPos = stream.position(),
+            firstToken = stream.get(),
             success = true;
         
         if (matchChar) {
@@ -503,8 +500,9 @@ const ALL = createFunctionToken('ALL', function(stream, ...args) {
         return new Result({
           type: 'CHAR',
           source: stream,
-          position: new Position(startPos, stream.position()),
-          value: firstToken,
+          position: new Position(startPos, startPos + 1),
+          value: firstToken.toString(),
+          rawValue: firstToken,
           success: success
         });
       }),
@@ -513,47 +511,47 @@ const ALL = createFunctionToken('ALL', function(stream, ...args) {
         var Klass = createREToken('REGEXP', regexp);
         return new Klass();
       },
-      FOLLOWING = function() {
-        return FIRST(
-          NOT(CHAR('\\')),
-          CHAR()
-        );
-      };
+      FOLLOWING = createFunctionToken('FOLLOWING', function(stream, token) {
+        var startPos = stream.position(),
+            value = ALL(
+              token,
+              CHAR()
+            ).match(stream);
+        
+        if (!value || (value instanceof Result && !value.success))
+          return;
+
+        return new Result({
+          type: 'FOLLOWING',
+          source: stream,
+          position: new Position(startPos, stream.position()),
+          value: value[1],
+          rawValue: value,
+          success: true
+        });
+      }, (result) => (result.success && result.value));
 
 function stringMatcherFactory(tokenType, stringChar) {
-  /*function matcher() {
-    var firstToken = this.source.get(this.position.start);
-    if (!firstToken || firstToken.type !== 'CHAR' || firstToken.rawValue !== stringChar)
+  return createFunctionToken('STRING', function(stream) {
+    var startPos = stream.position(),
+        value = ALL(
+          CHAR(stringChar),
+          REPEAT(FIRST(FOLLOWING(CHAR('\\')), NOT(CHAR(stringChar)))),
+          CHAR(stringChar)
+        ).match(stream);
+
+    if (!value || (value instanceof Result && !value.success))
       return;
 
-    var stringTokenizer = new Tokenizer({
-      types: [
-        new FOLLOWING(new CHAR('\\')),
-        new REGEXP(new RegExp('[^' + stringChar + ']'))
-      ]
+    return new Result({
+      type: 'STRING',
+      source: stream,
+      position: new Position(startPos, stream.position()),
+      value: value.slice(1, -1).join(''),
+      rawValue: value,
+      success: !!value
     });
-
-    var outStream = stringTokenizer.parse(this.source, new Position(this.position.start + 1));
-    if (!outStream.length())
-      return;
-    
-    var sourcePosition = new Position(this.position.start, outStream.get(-1).position.end + 1),
-        rawValue = this.source.get(sourcePosition).toString(),
-        value = outStream.toString();
-    
-    return Klass.create(this.source, sourcePosition, value, rawValue);
-  }*/
-
-  //var Klass = createFunctionToken(tokenType, matcher);
-  //return Klass;
-
-  return function() {
-    return ALL(
-      CHAR(stringChar),
-      REPEAT(FIRST(FOLLOWING(CHAR('\\')), NOT(CHAR(stringChar)))),
-      CHAR(stringChar)
-    );
-  };
+  });
 }
 
 const TOKENS = {
