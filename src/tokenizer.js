@@ -2,55 +2,90 @@ import { definePropertyRO, definePropertyRW, noe, isValidNum } from './utils';
 import Position from './position';
 import Token from './token';
 import TokenStream from './token-stream';
-import { createTokenParser } from './parser-engine';
+import { convertToTokenParser, createTokenParser, isSuccessful, loop, REGEXP, EQ, ALIAS } from './parser-engine';
 
-const REPEAT = createTokenParser(function(getter, _min, _max) {
-  function doNextIteration(cb, index = 0) {
-    var value = getter.call(this);
-    if (value === undefined) {
-      done(null, values);
-      return;
-    }
-
-    if (value instanceof Promise) {
-      value.then((result) => {
-        values.push(result);
-        doNextIteration(index + 1);
-      }, (err) => {
-        done(err, values);
-      });
-    } else {
-      values.push(value);
-      doNextIteration(index + 1);
-    }
-  }
-
-  var values = [],
-      min = (_min === undefined) ? 0 : min,
+const REPEAT = createTokenParser(function(_getter, _min, _max) {
+  var getter = convertToTokenParser(_getter),
+      min = (_min === undefined) ? 0 : _min,
       max = (_max === undefined) ? Infinity : _max;
 
-  doNextIteration();
-  for (var i = 0; i < max; i++) {
-    var value = getter.call(this);
-    if (value instanceof Promise) {
+  if (arguments.length === 2)
+    max = min;
 
+  return loop.call(this, (index, done) => {
+    //console.log('LOOPING!!', index);
+    if (index >= max)
+      return done();
+
+    var val = getter.call(this);
+    if (!val.success) {
+      if (index >= min)
+        return done();
+
+      return done(null);
     }
-  }
-
-  if (i < min)
+    
+    return val;
+  });
+}, function(result) {
+  if (!result || result.length === 0)
     return;
 
-  
+  return new Token({
+    type: 'REPEAT',
+    source: this,
+    position: result[result.length - 1].position,
+    value: result.map((t) => t.value).join(''),
+    rawValue: result
+  });
+});
+
+const OR = createTokenParser(function(...parsers) {
+  for (var i = 0, il = parsers.length; i < il; i++) {
+    var parser = convertToTokenParser(parsers[i]),
+        value = parser.call(this);
+    
+    if (value.success)
+      return value;
+  }
+});
+
+const AND = createTokenParser(function(...parsers) {
+  var results = [];
+
+  for (var i = 0, il = parsers.length; i < il; i++) {
+    var parser = convertToTokenParser(parsers[i]),
+        value = parser.call(this);
+    
+    if (!value.success)
+      return;
+
+    results.push(value);
+  }
+
+  return results;
 }, function(result) {
+  if (!result || result.length === 0)
+    return;
 
+  return new Token({
+    type: 'AND',
+    source: this,
+    position: result[result.length - 1].position,
+    value: result.map((t) => t.value).join(''),
+    rawValue: result
+  });
 });
 
-const TEST = createTokenParser(/\w+/, function(result) {
-  console.log('Result: ', result);
-});
+const MY_TOKEN = ALIAS(AND(/\w+/, /\s+/, /\w+/), 'MY_TOKEN');
 
-var src = new TokenStream('This is just a test string');
-console.log(REPEAT(TEST));
+// TODO: Make this work
+//const STRING_DQ = AND('"', REPEAT(NOT(AND('\\', REPEAT(/./, 1)))), '"')
+
+var src = new TokenStream('This stuff derp hello');
+console.log(
+  REPEAT(MY_TOKEN).call(src)
+);
 
 // function createFunctionToken(name, func, resultFormatter) {
 //   return function(...args) {

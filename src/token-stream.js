@@ -1,5 +1,6 @@
 import { definePropertyRO, definePropertyRW } from './utils';
 import Position from './position';
+import Token, { NULL } from './token';
 
 export const  ARRAY_TOKEN_STREAM = 1,
               STRING_TOKEN_STREAM = 2;
@@ -19,8 +20,8 @@ export default class TokenStream {
       this._stringCache = content;
       this._stringCacheInvalid = false;
     } else if (content instanceof TokenStream) {
-      tokens = content.tokens().slice();
-      position = new Position(content.getPosition());
+      tokens = content._tokens;
+      position = new Position(content.position());
     } else if (content instanceof Array) {
       tokens = content.slice();
     } else {
@@ -30,6 +31,20 @@ export default class TokenStream {
     definePropertyRW(this, '__tokensType', (tokens instanceof Array) ? ARRAY_TOKEN_STREAM : STRING_TOKEN_STREAM);
     definePropertyRW(this, '__position', (!position) ? new Position(0, 0) : position);
     definePropertyRW(this, '__tokens', tokens);
+
+    Object.defineProperty(this, 'length', {
+      enumerable: false,
+      configurable: false,
+      get: () => this._tokens.length,
+      set: () => {}
+    });
+
+    Object.defineProperty(this, 'offset', {
+      enumerable: false,
+      configurable: false,
+      get: () => this._position.start,
+      set: () => {}
+    });
   }
 
   toString() {
@@ -46,10 +61,6 @@ export default class TokenStream {
     } else {
       return this._stringCache;
     }
-  }
-
-  length() {
-    return this._tokens.length;
   }
 
   push(token) {
@@ -70,11 +81,12 @@ export default class TokenStream {
     return (this._tokens || []);
   }
 
-  position() {
-    return this._position.start;
+  substr(start, length) {
+    var str = this.toString();
+    return str.substr(start, length);
   }
 
-  getPosition() {
+  position() {
     return this._position;
   }
 
@@ -112,5 +124,9 @@ export default class TokenStream {
       this._eos = !!set;
 
     return this._eos;
+  }
+
+  NULL(...params) {
+    return NULL.call(this, ...params);
   }
 };

@@ -40,7 +40,7 @@ export function isValidNum(num) {
   if (num === undefined || num === null)
     return false;
 
-  if (!(num instanceof Number || typeof num !== 'number'))
+  if (!(num instanceof Number || typeof num === 'number'))
     return false;
   
   return (!isNaN(num) && isFinite(num));
