@@ -5,6 +5,13 @@ import TokenStream from './token-stream';
 
 //const MUST_BE_TOKEN_MESSAGE = 'Resolver must return a token. If you want to return "nothing" consider returning the NULL token';
 
+export function isValidResult(result) {
+  if (!result || (result instanceof Array && result.length === 0) || result.type === 'NULL' || result.success === false)
+    return false;
+  
+  return true;
+}
+
 export function convertToTokenParser(_getter) {
   var getter = _getter;
   if (getter instanceof RegExp)
@@ -134,18 +141,18 @@ export const REGEXP = createTokenParser(function(regexp) {
   if (resolver instanceof Function) {
     result = resolver.call(this, result);
   } else {
-    if (result === undefined || result === null)
+    if (!isValidResult(result))
       return;
 
     result = result[0];
   }
 
+  if (!isValidResult(result))
+    return;
+
   if (result instanceof Token)
     return result;
 
-  if (result === undefined || result === null)
-    return;
-  
   return new Token({
     type: 'REGEXP',
     source: this,
@@ -177,11 +184,11 @@ export const REGEXP = createTokenParser(function(regexp) {
 });
 
 export const EQ = createTokenParser(function(str) {
-  return (this.substr(this.offset, str.length) === str);
-}, function(_result) {
-  var result = _result;
-  if (resolver instanceof Function)
-    result = resolver.call(this, result);
+  var chunk = this.substr(this.offset, str.length),
+      m = (chunk === str);
+  return { value: (m) ? str : chunk, success: m };
+}, function(_result, str, resolver) {
+  var result = (resolver instanceof Function) ? resolver.call(this, _result) : _result;
 
   if (result instanceof Token)
     return result;
@@ -189,10 +196,10 @@ export const EQ = createTokenParser(function(str) {
   return new Token({
     type: 'EQ',
     source: this,
-    position: ('' + result).length,
-    value: result,
+    position: result.value.length,
+    value: result.value,
     rawValue: _result,
-    success: true
+    success: result.success
   });
 });
 

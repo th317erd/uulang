@@ -2,7 +2,7 @@ import { definePropertyRO, definePropertyRW, noe, isValidNum } from './utils';
 import Position from './position';
 import Token from './token';
 import TokenStream from './token-stream';
-import { convertToTokenParser, createTokenParser, isSuccessful, loop, REGEXP, EQ, ALIAS } from './parser-engine';
+import { isValidResult, convertToTokenParser, createTokenParser, isSuccessful, loop, REGEXP, EQ, ALIAS } from './parser-engine';
 
 const REPEAT = createTokenParser(function(_getter, _min, _max) {
   var getter = convertToTokenParser(_getter),
@@ -18,7 +18,7 @@ const REPEAT = createTokenParser(function(_getter, _min, _max) {
       return done();
 
     var val = getter.call(this);
-    if (!val.success) {
+    if (!isValidResult(val)) {
       if (index >= min)
         return done();
 
@@ -28,7 +28,7 @@ const REPEAT = createTokenParser(function(_getter, _min, _max) {
     return val;
   });
 }, function(result) {
-  if (!result || result.length === 0)
+  if (!isValidResult(result))
     return;
 
   return new Token({
@@ -37,6 +37,23 @@ const REPEAT = createTokenParser(function(_getter, _min, _max) {
     position: result[result.length - 1].position,
     value: result.map((t) => t.value).join(''),
     rawValue: result
+  });
+});
+
+const NOT = createTokenParser(function(_parser) {
+  var parser = convertToTokenParser(_parser);
+  return parser.call(this);
+}, function(result) {
+  if (!result || result.success === true)
+    return;
+
+  return new Token({
+    type: 'NOT',
+    source: result.source,
+    position: result.position,
+    value: result.value,
+    rawValue: result.rawValue,
+    success: true
   });
 });
 
@@ -57,7 +74,7 @@ const AND = createTokenParser(function(...parsers) {
     var parser = convertToTokenParser(parsers[i]),
         value = parser.call(this);
     
-    if (!value.success)
+    if (!isValidResult(value))
       return;
 
     results.push(value);
@@ -65,7 +82,7 @@ const AND = createTokenParser(function(...parsers) {
 
   return results;
 }, function(result) {
-  if (!result || result.length === 0)
+  if (!isValidResult(result))
     return;
 
   return new Token({
@@ -77,14 +94,39 @@ const AND = createTokenParser(function(...parsers) {
   });
 });
 
-const MY_TOKEN = ALIAS(AND(/\w+/, /\s+/, /\w+/), 'MY_TOKEN');
+const MY_TOKEN = ALIAS(OR(/\w+/, /\s+/), 'MY_TOKEN');
 
 // TODO: Make this work
-//const STRING_DQ = AND('"', REPEAT(NOT(AND('\\', REPEAT(/./, 1)))), '"')
+const SEQ = createTokenParser(function(c, name) {
+  return AND(c, REPEAT(OR(REGEXP(/\\(.)/, function(result) {
+    if (!isValidResult(result))
+      return;
+    
+    return new Token({
+      type: 'REGEXP',
+      source: this,
+      position: result[0].length,
+      value: result[1],
+      rawValue: result
+    });
+  }), NOT(c))), c).call(this);
+}, function(result, c, name) {
+  if (!isValidResult(result))
+    return;
 
-var src = new TokenStream('This stuff derp hello');
+  return new Token({
+    type: name || 'SEQ',
+    source: result.source,
+    position: result.position,
+    value: result.value,
+    rawValue: result.value.substring(1, result.value.length - 1),
+    success: result.success
+  });
+});
+
+var src = new TokenStream('This stuff derp hello "this is a \\" DQ string" stuff and \'here we see a single quoted string\'');
 console.log(
-  REPEAT(MY_TOKEN).call(src)
+  REPEAT(OR(MY_TOKEN, SEQ('"', "STRING_DQ"), SEQ("'", "STRING_SQ"))).call(src)
 );
 
 // function createFunctionToken(name, func, resultFormatter) {

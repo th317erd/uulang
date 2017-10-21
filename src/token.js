@@ -9,8 +9,10 @@ export default class Token {
         position = opts.position,
         value = opts.value;
 
-    if (noe(type, source, position))
+    if (noe(type, source, position)) {
+      console.log("ERRROR:", type, source, position);
       throw new Error('"type", "source", and "position" are required attributes when rejecting a token');
+    }
 
     position = (isValidNum(position)) ? new Position(source.offset, source.offset + position) : position;
 

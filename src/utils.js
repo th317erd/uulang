@@ -24,7 +24,10 @@ export function noe() {
     if (value instanceof Array && value.length === 0)
       return true;
   
-    return !value;
+    if (value.constructor === Object && Object.keys(value).length === 0)
+      return true;
+
+    return false;
   }
 
   for (var i = 0, il = arguments.length; i < il; i++) {
