@@ -71,17 +71,15 @@ export const OR = createTokenParser(function(...parsers) {
 export const AND = createTokenParser(function(...parsers) {
   var results = [];
 
-  for (var i = 0, il = parsers.length; i < il; i++) {
-    var parser = convertToTokenParser(parsers[i]),
-        value = parser.call(this);
-    
-    if (!isValidResult(value))
-      return;
+  return loop.call(this, (index, done, previousValue, values) => {
+    if (index > 0 && !isValidResult(previousValue))
+      return done(null);
 
-    results.push(value);
-  }
+    if (index >= parsers.length)
+      return done();
 
-  return results;
+    return convertToTokenParser(parsers[index]).call(this);
+  });
 }, function(result) {
   if (!isValidResult(result))
     return;
@@ -177,7 +175,7 @@ const MY_TOKEN = ALIAS(OR(/\w+/), 'MY_TOKEN');
 
 //BODY('"', "STRING_DQ"), BODY("'", "STRING_SQ")
 
-var tokenizer = new Tokenizer(REPEAT(OR(MY_TOKEN, TEST)));
+var tokenizer = new Tokenizer(AND(/\w+/, /\s+/, /\w+/, TEST));
 tokenizer.parse('This stuff derp hello "this is a \\" DQ string" stuff and \'here we see a single quoted string', function(err, result) {
   console.log('FINAL RESULT: ', result);
 });
