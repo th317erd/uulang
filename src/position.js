@@ -7,8 +7,8 @@ export default class Position {
 
     if (arguments.length === 1) {
       if (s instanceof Position) {
-        _start = s.start;
-        _end = s.end;
+        _start = s.rawStart;
+        _end = s.rawEnd;
       } else if (isValidNum(s)) {
         _start = s;
       }
@@ -29,6 +29,20 @@ export default class Position {
       configurable: false,
       get: () => (this.end - this.start),
       set: () => {}
+    });
+
+    Object.defineProperty(this, 'rawStart', {
+      enumerable: true,
+      configurable: false,
+      get: () => _start,
+      set: (val) => _start = val
+    });
+
+    Object.defineProperty(this, 'rawEnd', {
+      enumerable: true,
+      configurable: false,
+      get: () => _end,
+      set: (val) => _end = val
     });
 
     Object.defineProperty(this, 'start', {

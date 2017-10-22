@@ -98,16 +98,21 @@ export default class TokenStream {
         return this._tokens.charAt(this._position.start++);
       return this._tokens[this._position.start++];
     } else {
-      position = new Position(_position, undefined, this.length());
+      position = new Position(_position);
     }
 
-    if (position.end === undefined) {
+    if (position.end === position.start) {
       position = position.start;
+      if (position >= this._position.start)
+        this._position.start++;
 
       if (this._tokensType === STRING_TOKEN_STREAM)
         return this._tokens.charAt(position);
       return this._tokens[position];
     }
+
+    if (position.end >= this._position.start)
+      this._position.start = position.end;
     
     if (this._tokensType === STRING_TOKEN_STREAM)
       return new TokenStream(this._tokens.substring(position.start, position.end));
@@ -124,6 +129,10 @@ export default class TokenStream {
       this._eos = !!set;
 
     return this._eos;
+  }
+
+  raise(err) {
+
   }
 
   NULL(...params) {

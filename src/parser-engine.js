@@ -18,8 +18,13 @@ export function convertToTokenParser(_getter) {
     getter = REGEXP(getter);
   else if (typeof getter === 'string' || getter instanceof String)
     getter = EQ(getter);
-  else if (!(getter instanceof Function))
+  else if (!(getter instanceof Function)) {
+    console.log('TYPE: ', getter);
     throw new Error('Parser getter type not supported. Supported types are: RegExp, String, and Function');
+  }
+
+  if (getter._rawParser === true)
+    return getter();
 
   return getter;
 }
@@ -56,14 +61,12 @@ export function createTokenParser(_getter, _resolver, _convertParams) {
   if (arguments.length < 2)
     resolver = (r) => r;
   
-  return function(...args) {
+  var creatorFunc = function(...args) {
     var params = (_convertParams instanceof Function) ? _convertParams.call(this, ...args) : args;
 
     return function() {
-      var startPos = this.offset,
-          context = new TokenStream(this),
-          value = getter.call(context, ...params),
-          handleFinalValue = (val) => {
+      const handleFinalValue = (val) => {
+            //console.log('Got value!', (val instanceof Token) ? ('Token: ' + val.value) : val);
             var ret = coerceValueToToken.call(this, val),
                 pos = ret.position;
 
@@ -75,9 +78,17 @@ export function createTokenParser(_getter, _resolver, _convertParams) {
             return ret;
           };
 
+      // We have hit the end of stream... don't call any more parsers
+      if (this.eof())
+        return handleFinalValue();
+
+      var startPos = this.offset,
+          context = new TokenStream(this),
+          value = getter.call(context, ...params);
+          
       if (value instanceof Promise) {
-        return (async (val) => {
-          return handleFinalValue(await val);
+        return (async (_val) => {
+          return handleFinalValue(resolver.call(this, await _val, ...params));
         })(value);
       } else {
         value = resolver.call(this, value, ...params);
@@ -88,6 +99,15 @@ export function createTokenParser(_getter, _resolver, _convertParams) {
       }
     };
   };
+
+  Object.defineProperty(creatorFunc, '_rawParser', {
+    writable: false,
+    enumerable: false,
+    configurable: false,
+    value: true
+  });
+
+  return creatorFunc;
 }
 
 export function loop(cb) {
@@ -96,8 +116,8 @@ export function loop(cb) {
     if (val !== d)
       values.push(val);
 
-    for (; !done; i++) {
-      val = await cb.call(this, i, d, values);
+    for (i++; !done; i++) {
+      val = await cb.call(this, i, d, values[values.length - 1], values);
       if (val !== d)
         values.push(val);
     }
@@ -112,7 +132,7 @@ export function loop(cb) {
       val;
 
   for (var i = 0; !done; i++) {
-    val = cb.call(this, i, d, values);
+    val = cb.call(this, i, d, values[values.length - 1], values);
 
     if (val instanceof Promise)
       return loopAsync.call(this);
