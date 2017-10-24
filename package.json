@@ -1,5 +1,5 @@
 {
-  "name": "wyatt-lang",
+  "name": "uulang",
   "version": "0.0.1",
   "description": "Advanced Programming language",
   "main": "src/main.js",
@@ -8,7 +8,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/th317erd/wyatt-lang.git"
+    "url": "git+https://github.com/th317erd/uulang.git"
   },
   "keywords": [
     "programming",
@@ -18,14 +18,17 @@
   "author": "Wyatt Greenway",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/th317erd/wyatt-lang/issues"
+    "url": "https://github.com/th317erd/uulang/issues"
   },
-  "homepage": "https://github.com/th317erd/wyatt-lang#readme",
+  "homepage": "https://github.com/th317erd/uulang#readme",
   "devDependencies": {
     "babel-cli": "^6.26.0",
     "babel-env": "^2.4.1",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
     "babel-preset-env": "^1.6.0",
     "babel-preset-stage-0": "^6.24.1"
+  },
+  "dependencies": {
+    "babel-core": "^6.26.0"
   }
 }
