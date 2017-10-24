@@ -2,6 +2,10 @@ import fs from 'fs';
 import { Tokenizer } from 'adextopa';
 import { UULANG } from './parsers/uulang';
 
+/* TODO:
+ * Need to think about how this parser can be extended at runtime
+ */
+
 export const DEFAULT_OPTIONS = {
 };
 
