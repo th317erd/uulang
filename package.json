@@ -2,9 +2,9 @@
   "name": "uulang",
   "version": "0.0.1",
   "description": "Advanced Programming language",
-  "main": "src/main.js",
+  "main": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/jasmine"
   },
   "repository": {
     "type": "git",
@@ -22,13 +22,6 @@
   },
   "homepage": "https://github.com/th317erd/uulang#readme",
   "devDependencies": {
-    "babel-cli": "^6.26.0",
-    "babel-env": "^2.4.1",
-    "babel-plugin-transform-object-rest-spread": "^6.26.0",
-    "babel-preset-env": "^1.6.0",
-    "babel-preset-stage-0": "^6.24.1"
-  },
-  "dependencies": {
-    "babel-core": "^6.26.0"
+    "jasmine": "^3.6.1"
   }
 }
