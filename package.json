@@ -22,6 +22,10 @@
   },
   "homepage": "https://github.com/th317erd/uulang#readme",
   "devDependencies": {
-    "jasmine": "^3.6.1"
-  }
+    "colors": "^1.4.0",
+    "diff": "^4.0.2",
+    "jasmine": "^3.6.1",
+    "mkdirp": "^1.0.4"
+  },
+  "dependencies": {}
 }

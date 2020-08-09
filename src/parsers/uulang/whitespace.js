@@ -22,7 +22,7 @@ module.exports = (GT) => {
   };
 
   function $_WS(opts) {
-    return $WS(Object.assign({}, opts || {}, { optional: true }));
+    return $WS(Object.assign({ typeName: 'WhiteSpace' }, opts || {}, { optional: true }));
   }
 
   return {

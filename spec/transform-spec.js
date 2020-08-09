@@ -4,7 +4,7 @@ const { Token }           = require('adextopa'),
 
 describe("Transform", function() {
   it("should be able to transform input", function(done) {
-    var source = loadTestSource('test');
+    var source = loadTestSource('variable-declaration');
 
     var result = transform(source, {}, (err, token) => {
       if (err) {
@@ -14,7 +14,6 @@ describe("Transform", function() {
       }
 
       expect(token instanceof Token).toBe(true);
-      debugger;
 
       done();
     });

@@ -6,7 +6,7 @@ const Adextopa    = require('adextopa'),
  */
 
 const { Parser }                = Adextopa;
-const $UULANG                   = UULANG(Adextopa);
+const { $UULANG }               = UULANG(Adextopa);
 const DEFAULT_TRANSFORM_OPTIONS = {
 };
 
