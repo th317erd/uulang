@@ -1,1 +1,1 @@
-module.exports = require('./uulang');
+module.exports = require('./uulang-parser');

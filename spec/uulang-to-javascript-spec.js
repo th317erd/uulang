@@ -4,7 +4,7 @@ const { Token }                 = require('adextopa'),
       { loadTestSource }        = require('./test-utils'),
       { Generators, transform } = require('./lib');
 
-const { UULangToJavascriptGenerator } = Generators;
+const { JavascriptGenerator } = Generators;
 
 describe("Transform", function() {
   beforeEach(function() {
@@ -13,7 +13,7 @@ describe("Transform", function() {
 
   it("should be able to transform input", function(done) {
     var source    = loadTestSource('variable-declaration'),
-        generator = UULangToJavascriptGenerator();
+        generator = JavascriptGenerator();
 
     transform(source, {}, (err, token) => {
       if (err) {
@@ -23,6 +23,7 @@ describe("Transform", function() {
 
       expect(token instanceof Token).toBe(true);
       var generatedResult = generator.generate(token);
+      debugger;
       expect(generatedResult).toMatchSnapshot();
 
       done();

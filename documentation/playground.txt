@@ -1,0 +1,41 @@
+name() -> {
+
+}
+
+if (conditions) {
+
+}
+
+(:).each([ ([ index ], sum<Integer>) -> {
+  return index;
+}], 0)
+
+Rules:
+  1. Functions must have parathesis (argument list) to be called
+
+Thoughts:
+  1. No blocks... they add complexity, and are not needed (why not just use functions instead?)
+
+Scopes have a scope space, and an "instance" space.
+
+Scope = {
+  @ << OtherScope;
+
+  :()(args) -> {
+    self.OtherScope(args);
+  }
+
+  @@ << {
+    :[]([ indexOrRange ]) -> {
+
+    }
+
+    someMethod(args) -> {
+      ret = self.OtherScope.someMethod(args);
+      return ret;
+    }
+  }
+}
+
+value<Scope> = Scope([ 'test', true, 2345 ])
+value[]
