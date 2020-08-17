@@ -6,7 +6,7 @@ module.exports = (GT, { finalize }) => {
 
   function $END_OF_STATEMENT(opts) {
     return $DISCARD(
-      $EQUALS('=')
+      $EQUALS(';')
     );
   };
 

@@ -17,7 +17,7 @@ module.exports = {
     const { $SCOPE } = Object.assign(GT, require('./scope')(GT, Utils, Adextopa));
 
     return Object.assign(GT, {
-      $UULANG: $SCOPE(),
+      $UULANG: $SCOPE()
     });
   }
 };
