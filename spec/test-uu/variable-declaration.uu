@@ -1,2 +1,5 @@
-hello = "world";
-test = "stuff";
+hello: "stuff";
+thing: 10;
+name ->{
+  something: "stuff";
+};

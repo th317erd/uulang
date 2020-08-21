@@ -18,6 +18,12 @@ function transform(_source, _opts, cb) {
 
       return resolve(token);
     } catch (e) {
+      var errors = parser.getErrors();
+
+      errors.forEach((error) => {
+        console.error(error);
+      });
+
       return reject(e);
     }
   };

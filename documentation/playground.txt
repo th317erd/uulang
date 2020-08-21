@@ -1,41 +1,199 @@
-name() -> {
+# @               = self scope
+# @@              = self method
+# >>              = pipe from input (left-side)
+# <<              = pipe to output
+# ->{}            = anonymous function
+# name ->{}       = named function
+# name<Type> ->{} = named function with static (literal only) arguments
+# {}              = scope
+# []              = expand to literal
+# $               = a key always in the scope that equates to the literal input (i.e. primitive or scope)
+# _name: String   = an underscore (private) key name will be private (it won't be accessible)
+# !_name: String  = an unserscore (private) attribute name, backed by a getter/setter
+# !!_name: String = an unserscore (private) attribute name, backed by only a getter (ro)
 
+# underscore variables are local only to the scope, and are non-iterable
+# scopes are prototypical
+# a method called on an object is always passed the instance scope of the object
+
+import<FileName> ->{
+  { file_name: FileName } >> File >> eval >>;
 }
 
-if (conditions) {
+import<'test.uu'> >> @;
 
-}
+Parent ->{
+  {} >> ->{
+    _name<String>: nil;
 
-(:).each([ ([ index ], sum<Integer>) -> {
-  return index;
-}], 0)
+    set_name ->{
+      _name = $;
+    }
 
-Rules:
-  1. Functions must have parathesis (argument list) to be called
+    say_hello ->{
+      "Hello #{_name}!" >> stdout >>;
+    }
 
-Thoughts:
-  1. No blocks... they add complexity, and are not needed (why not just use functions instead?)
-
-Scopes have a scope space, and an "instance" space.
-
-Scope = {
-  @ << OtherScope;
-
-  :()(args) -> {
-    self.OtherScope(args);
-  }
-
-  @@ << {
-    :[]([ indexOrRange ]) -> {
+    [+=] ->{
 
     }
 
-    someMethod(args) -> {
-      ret = self.OtherScope.someMethod(args);
-      return ret;
+    >>;
+  } >>;
+}
+
+Child ->{
+  Parent >> ->{
+    super_set_name: set_name;
+    set_name ->{
+      >> { name: "Mr. #{name}" } >> super_set_name >>;
     }
+
+    >>;
+  } >>;
+}
+
+Array<Type> ->{
+  _size:  0;
+  self:   @;
+
+  add ->{
+    >>Type >> ->{ [_size++]: $ } >> self;
+  }
+
+  size ->{
+    _size >>;
+  }
+
+  join ->{
+    str: Array<Char>;
+    sep: $;
+
+    @ >> iterate >> ->{
+      item >> str.add;
+      (!last_item) {
+        sep >> str;
+      }
+    }
+
+    str.to_string <<;
+  }
+
+  to_string ->{
+    '[ #{', ' >> @.join } ]' <<;
+  }
+
+  @ <<;
+}
+
+Word ->{
+  letters: $.to_string;
+
+  cursor ->{
+    { start: 0, end: letters.size } >> Range <<;
+  }
+
+  to_string ->{
+    letters <<;
+  }
+
+  @ <<;
+}
+
+Words ->{
+  words: Array<Word>;
+
+  cursor ->{
+    { start: 0, end: words.size } >> Range <<;
+  }
+
+  add ->{
+    ($ is Word) {
+      >> words.add <<;
+    } => {
+      >> Word >> words.add <<;
+    }
+  }
+
+  to_string ->{
+    ' ' >> words.join <<
+  }
+
+  @ <<;
+}
+
+iterate ->{
+  result = { item: internal_item } <<;
+
+  (result == nil) {
+    return??
+  } =>(something_else) { #else if
+
+  } => { # else
+
   }
 }
 
-value<Scope> = Scope([ 'test', true, 2345 ])
-value[]
+reverse_iterate ->{
+  >> { cursor: cursor.reverse } >> iterate >>;
+}
+
+# Loop
+result<Array<Number>>;
+{ start: 0 } >> ->{
+  (start < 10) {
+    "#{start}" >> stdout;
+    stuff: start >>;
+    >> { start: start + 1 } >> @@;
+  }
+} >> ->{ >> };
+
+# Function with a default output pipe
+map ->{
+  >> { cursor: cursor >> {} } >> iterate ->{
+    (!cursor.done) {
+      cursor.pop >> iterate >>;
+    }
+  } >>;
+};
+
+mapped: words >> map >> ->{ "#{$}" >> };
+
+->{
+  words = Words;
+  'Hello' >> words.add;
+  'World' >> words.add;
+
+  words >> reverse_iterate >> ->{
+    'Word #{position}' + word <<;
+  }
+}
+
+->{
+  { file_name: 'test.txt' } >> open >> ->{
+    words: Array<Word>;
+    current_word: Array<Char>;
+
+    handle >> iterate >> ->{
+      (item >= 'a' && item <= 'z') {
+        item >> current_word.add;
+      } => {
+        (current_word.size > 0) {
+          current_word >> words.add;
+          current_word = Array<Char>;
+        }
+      }
+    }
+
+    (current_word.size > 0) {
+      current_word >> words.add;
+      current_word = nil;
+    }
+
+    words <<;
+  } >> ->{
+    >> reverse_iterate >> ->{
+      'Word #{position}' + word >> stdout;
+    }
+  }
+}

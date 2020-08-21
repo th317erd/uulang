@@ -1,3 +1,5 @@
+require('colors');
+
 const { CUSTOM_MATCHERS }       = require('./test-utils');
 
 const { Token }                 = require('adextopa'),
@@ -15,7 +17,7 @@ describe("Transform", function() {
     var source    = loadTestSource('variable-declaration'),
         generator = JavascriptGenerator();
 
-    transform(source, {}, (err, token) => {
+    transform(source, { debug: false }, (err, token) => {
       if (err) {
         fail(err);
         return done();

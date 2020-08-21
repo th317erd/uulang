@@ -1,6 +1,8 @@
 const { flattenArrayToString } = require('../generator-utils');
 
 function JavascriptGenerator() {
+  // TODO: Convert to class
+
   function iterateChildren(_children) {
     var children  = _children,
         result    = [];
@@ -46,11 +48,20 @@ function JavascriptGenerator() {
   }
 
   function VariableDeclarator(token) {
-    return `let ${token.id.name} = ${iterateChildren(token.init)};`;
+    return `${CURRENT_SCOPE_VAR}['${token.id.name.replace(/([^\\])'/g, '\\\'')}'] = ${iterateChildren(token.init)};`;
   }
 
   function Program(token) {
-    return `(function() {\n  ${iterateChildren(token.children)}\n})();`;
+    return `(function(${CURRENT_SCOPE_VAR}) {\n  ${iterateChildren(token.children)}\n})({});`;
+  }
+
+  function FunctionDeclarator(token) {
+    var name = (token.id) ? ` ${token.id.name}` : '';
+    return `function${name}(${CURRENT_SCOPE_VAR}){${iterateChildren(token.children)}}`;
+  }
+
+  function FunctionBody(token) {
+    return iterateChildren(token.children);
   }
 
   const typeConverters = {
@@ -60,7 +71,9 @@ function JavascriptGenerator() {
     Identifier,
     Operator,
     VariableDeclarator,
-    Program
+    Program,
+    FunctionDeclarator,
+    FunctionBody
   };
 
   function generate(ast) {
@@ -69,6 +82,8 @@ function JavascriptGenerator() {
 
     return Program(ast);
   }
+
+  const CURRENT_SCOPE_VAR = 'cs';
 
   return {
     generate

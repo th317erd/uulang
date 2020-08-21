@@ -1,29 +1,49 @@
-module.exports = (GT) => {
+module.exports = (GT, { defineMatcher }) => {
   const {
     $OPTIONAL,
     $MATCHES
   } = GT;
 
-  function $WS(_opts) {
-    var opts      = _opts || {},
-        min       = opts.min,
-        max       = opts.max,
-        minNumber = parseInt('' + min, 10),
-        maxNumber = parseInt('' + max, 10);
+  const $WS = defineMatcher('$WS', (ParentClass) => {
+    return class WhiteSpaceMatcher extends ParentClass {
+      constructor(_opts) {
+        var opts      = Object.assign({ typeName: 'WhiteSpace' }, _opts || {}),
+            min       = opts.min,
+            max       = opts.max,
+            minNumber = parseInt('' + min, 10),
+            maxNumber = parseInt('' + max, 10);
 
-    if (!isFinite(minNumber))
-      minNumber = 1;
+        if (!isFinite(minNumber))
+          minNumber = 1;
 
-    if (!isFinite(maxNumber))
-      maxNumber = 1;
+        if (!isFinite(maxNumber))
+          maxNumber = 0;
 
-    var matcher = $MATCHES(new RegExp(`\\s{${minNumber},${(maxNumber) ? maxNumber : ''}}`), opts);
-    return (opts.optional) ? $OPTIONAL(matcher) : matcher;
-  };
+        super(opts);
 
-  function $_WS(opts) {
-    return $WS(Object.assign({ typeName: 'WhiteSpace' }, opts || {}, { optional: true }));
-  }
+        var matcher = $MATCHES(new RegExp(`\\s{${minNumber},${(maxNumber) ? maxNumber : ''}}`), opts);
+
+        Object.defineProperty(this, '_matcher', {
+          writable: true,
+          enumerable: false,
+          confiugrable: true,
+          value: (opts.optional) ? $OPTIONAL(matcher) : matcher
+        });
+      }
+
+      respond(context) {
+        return this._matcher.exec(this.getParser(), this.getSourceRange(), context);
+      }
+    };
+  });
+
+  const $_WS = defineMatcher('$_WS', (ParentClass) => {
+    return class OptionalWhiteSpaceMatcher extends ParentClass {
+      constructor(opts) {
+        super(Object.assign({}, opts || {}, { optional: true }));
+      }
+    };
+  }, $WS);
 
   return {
     $WS,

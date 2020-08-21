@@ -1,6 +1,7 @@
-module.exports = (GT, { finalize }) => {
+module.exports = (GT, { finalize, defineMatcher }) => {
   const {
     $_WS,
+    $DISCARD,
     $END_OF_STATEMENT,
     $OPTIONAL,
     $IDENTIFIER,
@@ -9,33 +10,50 @@ module.exports = (GT, { finalize }) => {
     $PROGRAM
   } = GT;
 
-  function $VARIABLE_DECLARATOR(opts) {
-    return $PROGRAM(
-      $IDENTIFIER(),
-      $_WS(),
-      $MATCHES(/=/, { typeName: 'AssignmentOperator' }),
-      $_WS(),
-      $LITERAL(),
-      $_WS(),
-      $OPTIONAL($END_OF_STATEMENT()),
-      {
-        typeName: 'VariableDeclarator',
-        _finalize: finalize(({ matcher, token }) => {
-          var parts = token.children.filter((token) => (token.typeName !== 'AssignmentOperator' && token.typeName !== 'WhiteSpace'));
-          if (parts.length !== 2)
-            return matcher.fail();
+  const $VARIABLE_DECLARATOR = defineMatcher('$VARIABLE_DECLARATOR', (ParentClass) => {
+    return class VariableDeclaratorMatcher extends ParentClass {
+      constructor(opts) {
+        super(opts);
 
-          token.defineProperties({
-            id: parts[0],
-            init: parts[1],
-            children: parts
-          });
+        Object.defineProperty(this, '_matcher', {
+          writable: true,
+          enumerable: false,
+          confiugrable: true,
+          value: (
+            $PROGRAM(
+              $IDENTIFIER({ typeName: 'VariableDeclaratorIdentifier'}),
+              $DISCARD($_WS()),
+              $MATCHES(/:/, { typeName: 'AssignmentOperator' }),
+              $DISCARD($_WS()),
+              $LITERAL({ typeName: 'VariableDeclaratorInitializer'}),
+              $DISCARD($_WS()),
+              $END_OF_STATEMENT(),
+              {
+                typeName: 'VariableDeclarator',
+                _finalize: finalize(({ matcher, token }) => {
+                  var parts = token.children.filter((token) => (token.typeName !== 'AssignmentOperator' && token.typeName !== 'WhiteSpace'));
+                  if (parts.length !== 2)
+                    return matcher.fail();
 
-          return token;
-        })
+                  token.defineProperties({
+                    id: parts[0],
+                    init: parts[1],
+                    children: parts
+                  });
+
+                  return token;
+                })
+              }
+            )
+          )
+        });
       }
-    );
-  };
+
+      respond(context) {
+        return this._matcher.exec(this.getParser(), this.getSourceRange(), context);
+      }
+    };
+  });
 
   return {
     $VARIABLE_DECLARATOR
