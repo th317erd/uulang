@@ -38,13 +38,19 @@ function getSnapShotInfo() {
 
   var specName = ((fileName) => {
     var names = [],
-        stop  = false;
+        stop  = false,
+        spaceLength;
 
     for (var i = relevantChunks.length - 1; i >= 0; i--) {
       var chunk = relevantChunks[i];
       chunk.replace(/^(\s*)(f?describe|f?it)\s*\(\s*(['"])([^\3]*?)\3/, (m, space, type, _, name) => {
         if (!space || !space.length)
           stop = true;
+
+        if (!spaceLength)
+          spaceLength = space.length;
+        else if (space.length >= spaceLength)
+          return m;
 
         names.push(fsSafeName(name));
       });

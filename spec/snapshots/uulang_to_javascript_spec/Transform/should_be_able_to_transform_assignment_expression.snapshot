@@ -1,0 +1,3 @@
+(function(cs) {
+  ((!('name' in cs)) ? (throw new Error('name is not defined')) : (cs['name'] = cs['name2'])
+})({});

@@ -1,35 +1,25 @@
-module.exports = (GT, { finalize, defineMatcher }) => {
+module.exports = (GT, { defineMatcher }) => {
   const {
     $MATCHES
   } = GT;
 
-  const $IDENTIFIER = defineMatcher('$IDENTIFIER', (ParentClass) => {
+  const $IDENTIFIER = defineMatcher('Identifier', (ParentClass) => {
     return class IdentifierMatcher extends ParentClass {
       constructor(opts) {
         super(opts);
 
-        Object.defineProperty(this, '_matcher', {
-          writable: true,
-          enumerable: false,
-          confiugrable: true,
-          value: (
-            $MATCHES(
-              /[a-zA-Z][a-zA-Z0-9_]+/,
-              Object.assign({
-                typeName: 'Identifier',
-                _finalize: finalize(({ context, token }) => {
-                  return token.defineProperties({
-                    name: token[0]
-                  });
-                })
-              }, opts)
-            )
+        this.setMatcher(
+          $MATCHES(
+            /[a-zA-Z][a-zA-Z0-9_]+/,
+            this.getMatcherOptions({
+              finalize: ({ context, token }) => {
+                return token.defineProperties({
+                  name: token[0]
+                });
+              }
+            })
           )
-        });
-      }
-
-      respond(context) {
-        return this._matcher.exec(this.getParser(), this.getSourceRange(), context);
+        );
       }
     };
   });

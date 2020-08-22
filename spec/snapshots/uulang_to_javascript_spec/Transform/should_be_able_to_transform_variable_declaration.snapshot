@@ -1,0 +1,3 @@
+(function(cs) {
+  cs['hello'] = "stuff";cs['thing'] = 10;
+})({});

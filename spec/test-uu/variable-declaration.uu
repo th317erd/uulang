@@ -1,5 +1,2 @@
 hello: "stuff";
 thing: 10;
-name ->{
-  something: "stuff";
-};

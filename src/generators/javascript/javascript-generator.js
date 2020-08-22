@@ -1,93 +1,61 @@
-const { flattenArrayToString } = require('../generator-utils');
+const { GeneratorBase }        = require('../generator-base');
 
-function JavascriptGenerator() {
-  // TODO: Convert to class
+const CURRENT_SCOPE_VARIABLE_NAME = 'cs';
 
-  function iterateChildren(_children) {
-    var children  = _children,
-        result    = [];
-
-    if (!(children instanceof Array))
-      children = [ children ];
-
-    for (var i = 0, il = children.length; i < il; i++) {
-      var child = children[i];
-      if (!child)
-        continue;
-
-      var typeName  = child.typeName,
-          converter = typeConverters[typeName];
-
-      if (typeof converter !== 'function')
-        throw new Error(`Generators.JavascriptGenerator.generate: Do know know how to convert type \`${typeName}\``);
-
-      result.push(converter(child));
-    }
-
-    return flattenArrayToString(result, (item) => (typeof item === 'string'));
+class JavascriptGenerator extends GeneratorBase {
+  constructor(_opts) {
+    super(Object.assign({
+      currentScopeVariableName: CURRENT_SCOPE_VARIABLE_NAME
+    }, _opts || {}));
   }
 
-  function WhiteSpace() {
+  getCurrentScopeVariableName() {
+    return this.getOptions().currentScopeVariableName;
+  }
+
+  WhiteSpace() {
     return ' ';
   }
 
-  function NumericLiteral(token) {
+  NumericLiteral(token) {
     return `${token.value}`;
   }
 
-  function StringLiteral(token) {
+  StringLiteral(token) {
     return `"${token.value}"`;
   }
 
-  function Identifier(token) {
-    return token.value;
+  Identifier(token) {
+    return `${this.getCurrentScopeVariableName()}['${token.name}']`;
   }
 
-  function Operator(token) {
+  Operator(token) {
     return token[0];
   }
 
-  function VariableDeclarator(token) {
-    return `${CURRENT_SCOPE_VAR}['${token.id.name.replace(/([^\\])'/g, '\\\'')}'] = ${iterateChildren(token.init)};`;
+  AssignmentExpression(token) {
+    var leftHandIdentifier  = token.left.name,
+        currentScopeName    = this.getCurrentScopeVariableName();
+
+    return `((!('${leftHandIdentifier}' in ${currentScopeName})) ? (throw new Error('${leftHandIdentifier} is not defined')) : (${currentScopeName}['${leftHandIdentifier}'] = ${this.iterateChildren([ token.right ])})`;
   }
 
-  function Program(token) {
-    return `(function(${CURRENT_SCOPE_VAR}) {\n  ${iterateChildren(token.children)}\n})({});`;
+  VariableDeclarator(token) {
+    return `${this.getCurrentScopeVariableName()}['${token.id.name.replace(/([^\\])'/g, '\\\'')}'] = ${this.iterateChildren(token.init)};`;
   }
 
-  function FunctionDeclarator(token) {
+  Program(token) {
+    return `(function(${this.getCurrentScopeVariableName()}) {\n  ${this.iterateChildren(token.children)}\n})({});`;
+  }
+
+  FunctionDeclarator(token) {
     var name = (token.id) ? ` ${token.id.name}` : '';
-    return `function${name}(${CURRENT_SCOPE_VAR}){${iterateChildren(token.children)}}`;
+    return `function${name}(${this.getCurrentScopeVariableName()}){${this.iterateChildren(token.children)}}`;
   }
 
-  function FunctionBody(token) {
-    return iterateChildren(token.children);
+  FunctionBody(token) {
+    return this.iterateChildren(token.children);
   }
-
-  const typeConverters = {
-    WhiteSpace,
-    NumericLiteral,
-    StringLiteral,
-    Identifier,
-    Operator,
-    VariableDeclarator,
-    Program,
-    FunctionDeclarator,
-    FunctionBody
-  };
-
-  function generate(ast) {
-    if (ast.typeName !== 'Program')
-      throw new TypeError('Generators.JavascriptGenerator.generate: First node must be of typeName `Program`');
-
-    return Program(ast);
-  }
-
-  const CURRENT_SCOPE_VAR = 'cs';
-
-  return {
-    generate
-  };
 }
 
 module.exports = {

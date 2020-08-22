@@ -1,48 +1,32 @@
-module.exports = (GT, { finalize, get, defineMatcher }) => {
-  const $SCOPE = defineMatcher('$SCOPE', (ParentClass) => {
-    return class EndOfStatementMatcher extends ParentClass {
+module.exports = (GT, { defineMatcher }) => {
+  const $SCOPE = defineMatcher('Scope', (ParentClass) => {
+    return class ScopeMatcher extends ParentClass {
       constructor(opts) {
         super(opts);
 
         const {
           $_WS,
-          $VARIABLE_DECLARATOR,
+          $EXPRESSION,
           $LOOP,
           $OPTIONAL,
-          $PROGRAM,
-          $FUNCTION_BODY
+          $PROGRAM
         } = GT;
 
-        Object.defineProperty(this, '_matcher', {
-          writable: true,
-          enumerable: false,
-          confiugrable: true,
-          value: (
-            $LOOP(
-              $PROGRAM(
-                $_WS(),
-                $OPTIONAL($VARIABLE_DECLARATOR(), { typeName: 'ScopeVariableDeclaratorOptional'}),
-                $_WS(),
-                $OPTIONAL($FUNCTION_BODY(), { typeName: 'ScopeFunctionBodyOptional'}),
-                $_WS(),
-                {
-                  _finalize: finalize(({ token }) => {
-                    return token.children.find((child) => child.typeName !== 'WhiteSpace');
-                  })
-                }
-              ),
+        this.setMatcher(
+          $LOOP(
+            $PROGRAM(
+              $_WS(),
+              $OPTIONAL($EXPRESSION(), { typeName: 'ScopeExpressionOptional'}),
+              $_WS(),
               {
-                debug: true,
-                typeName: get(opts, 'typeName', 'Program'),
-                _finalize: finalize()
+                finalize: ({ token }) => {
+                  return token.children[0];
+                }
               }
-            )
+            ),
+            this.getMatcherOptions({ typeName: 'Scope' })
           )
-        });
-      }
-
-      respond(context) {
-        return this._matcher.exec(this.getParser(), this.getSourceRange(), context);
+        );
       }
     };
   });
