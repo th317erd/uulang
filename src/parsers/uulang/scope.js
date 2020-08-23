@@ -24,7 +24,13 @@ module.exports = (GT, { defineMatcher }) => {
                 }
               }
             ),
-            this.getMatcherOptions({ typeName: 'Scope' })
+            this.getMatcherOptions({
+              typeName: 'Scope',
+              before: ({ context, token }) => {
+                context.parentScope = token;
+                return token;
+              }
+            })
           )
         );
       }

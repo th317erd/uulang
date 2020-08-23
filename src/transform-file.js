@@ -1,7 +1,9 @@
 const FileSystem    = require('fs'),
       { transform } = require('./transform');
 
-function transformFile(fileName, opts, callback) {
+function transformFile(fileName, _opts, callback) {
+  var opts = Object.assign({ fileName }, _opts || {});
+
   if (arguments.length < 3) {
     return new Promise((resolve, reject) => {
       FileSystem.readFile(fileName, 'utf8', function(err, data) {

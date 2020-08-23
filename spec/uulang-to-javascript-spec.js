@@ -12,7 +12,7 @@ function transformFile(fileName, callback) {
   var source    = loadTestSource(fileName),
       generator = new JavascriptGenerator();
 
-  transform(source, { debug: false, debugLevel: 1 }, (err, token) => {
+  transform(source, { fileName: `${fileName}.uu`, debug: false, debugLevel: 1 }, (err, token) => {
     callback(err, generator, token);
   });
 }
@@ -30,7 +30,6 @@ describe("Transform", function() {
       }
 
       expect(token instanceof Token).toBe(true);
-      debugger;
       var generatedResult = generator.generate(token);
       expect(generatedResult).toMatchSnapshot();
 
@@ -63,6 +62,23 @@ describe("Transform", function() {
 
       expect(token instanceof Token).toBe(true);
 
+      var generatedResult = generator.generate(token);
+      debugger;
+      expect(generatedResult).toMatchSnapshot();
+
+      done();
+    });
+  });
+
+  it("should be able to transform member-expression", function(done) {
+    transformFile('member-expression', (err, generator, token) => {
+      if (err) {
+        fail(err);
+        return done();
+      }
+
+      expect(token instanceof Token).toBe(true);
+      debugger;
       var generatedResult = generator.generate(token);
       expect(generatedResult).toMatchSnapshot();
 

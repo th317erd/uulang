@@ -1,5 +1,5 @@
 module.exports = (GT, { defineMatcher }) => {
-  const $EXPRESSION = defineMatcher('Expression', (ParentClass) => {
+  const $EXPRESSION = defineMatcher('ExpressionStatement', (ParentClass) => {
     return class ExpressionMatcher extends ParentClass {
       constructor(_opts) {
         var opts = _opts || {};
@@ -7,25 +7,23 @@ module.exports = (GT, { defineMatcher }) => {
         super(opts);
 
         const {
-          $IDENTIFIER,
           $ASSIGNMENT_EXPRESSION,
-          $VARIABLE_DECLARATOR,
+          $FUNCTION_DECLARATOR,
+          $IDENTIFIER,
+          $MEMBER_EXPRESSION,
           $OPTIONAL,
-          $PROGRAM,
-          $FUNCTION_DECLARATOR
+          $SELECT,
+          $VARIABLE_DECLARATOR
         } = GT;
 
         this.setMatcher(
-          $PROGRAM(
+          $SELECT(
             $OPTIONAL($ASSIGNMENT_EXPRESSION(), { typeName: 'ExpressionAssignmentExpressionOptional'}),
             $OPTIONAL($VARIABLE_DECLARATOR(), { typeName: 'ExpressionVariableDeclaratorOptional'}),
             $OPTIONAL($FUNCTION_DECLARATOR(), { typeName: 'ExpressionFunctionBodyOptional'}),
+            $OPTIONAL($MEMBER_EXPRESSION(), { typeName: 'ExpressionMemberExpressionOptional'}),
             $OPTIONAL($IDENTIFIER(), { typeName: 'ExpressionIndentifierOptional'}),
-            this.getMatcherOptions({
-              finalize: ({ token }) => {
-                return token.children[0];
-              }
-            }, { stopOnFirstMatch: true })
+            this.getMatcherOptions()
           )
         );
       }

@@ -1,3 +1,5 @@
+require('colors');
+
 const Adextopa    = require('adextopa'),
       { UULANG }  = require('./parsers');
 
@@ -12,6 +14,36 @@ const DEFAULT_TRANSFORM_OPTIONS = {
 
 function transform(_source, _opts, cb) {
   const tokenize = (resolve, reject) => {
+    const formatErrorOrWarningMessage = (result, colors) => {
+      const applyColor = (_str) => {
+        var str = _str;
+
+        for (var i = 1, il = colors.length; i < il; i++) {
+          var color = colors[i];
+          str = str[color];
+        }
+
+        return str;
+      };
+
+      var sourceStr     = parser.getSourceAsString(),
+          sourceRange   = result.sourceRange,
+          info          = parser.getLinesAndColumnsFromRange(sourceStr, sourceRange),
+          issueStr      = applyColor(sourceStr.substring(sourceRange.start, sourceRange.end)),
+          fileInfoStr   = `${parser.getOptions().fileName}[${info.startLine}:${info.startColumn}]`,
+          errorMessage  = `${fileInfoStr}: ${result.message}:`[colors[0]];
+
+      return `${errorMessage} ${sourceStr.substring(sourceRange.start - 10, sourceRange.start)}${issueStr}${sourceStr.substring(sourceRange.end, sourceRange.end + 10)}`;
+    };
+
+    const prettyPrintWarning = (warning) => {
+      console.log(formatErrorOrWarningMessage(warning, [ 'yellow', 'white', 'bgYellow' ]));
+    };
+
+    const prettyPrintError = (error) => {
+      console.log(formatErrorOrWarningMessage(error, [ 'red', 'white', 'bgRed' ]));
+    };
+
     try {
       var parser  = new Parser(source, opts),
           token   = parser.tokenize($UULANG);
@@ -20,9 +52,7 @@ function transform(_source, _opts, cb) {
     } catch (e) {
       var errors = parser.getErrors();
 
-      errors.forEach((error) => {
-        console.error(error);
-      });
+      errors.forEach(prettyPrintError);
 
       return reject(e);
     }

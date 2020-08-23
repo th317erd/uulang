@@ -10,7 +10,7 @@ module.exports = (GT, { defineMatcher }) => {
 
         this.setMatcher(
           $MATCHES(
-            /[a-zA-Z][a-zA-Z0-9_]+/,
+            /[a-zA-Z_][a-zA-Z0-9_]+/,
             this.getMatcherOptions({
               finalize: ({ context, token }) => {
                 return token.defineProperties({

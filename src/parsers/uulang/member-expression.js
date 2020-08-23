@@ -1,43 +1,36 @@
 module.exports = (GT, { getLastChild, setLastChild, defineMatcher }) => {
-  const $ASSIGNMENT_EXPRESSION = defineMatcher('AssignmentExpression', (ParentClass) => {
+  const $MEMBER_EXPRESSION = defineMatcher('MemberExpression', (ParentClass) => {
     return class FunctionBodyMatcher extends ParentClass {
       constructor(opts) {
         super(opts);
 
         const {
-          $_WS,
-          $END_OF_STATEMENT,
+          $DISCARD,
           $EQUALS,
-          $PROGRAM,
-          $EXPRESSION
+          $IDENTIFIER,
+          $PROGRAM
         } = GT;
 
         this.setMatcher(
           $PROGRAM(
-            $EQUALS('=', { typeName: 'AssignmentOperator' }),
-            $_WS(),
-            $EXPRESSION(),
-            $_WS(),
-            $END_OF_STATEMENT(),
+            $DISCARD($EQUALS('.', { typeName: 'AccessOperator' })),
+            $IDENTIFIER(),
             this.getMatcherOptions({
               finalize: ({ matcher, token, context }) => {
                 var lastToken = getLastChild(context.parentScope);
                 if (lastToken && (lastToken.typeName === 'Identifier' || lastToken.typeName === 'MemberExpression')) {
                   setLastChild(context.parentScope,
                     matcher.createToken(token.getSourceRange(), {
-                      typeName: this.getTypeName(),
-                      left: lastToken,
-                      operator: token.children[0].value,
-                      right: token.children[1]
+                      typeName: matcher.getTypeName(),
+                      object: lastToken,
+                      property: token.children[0],
                     })
                   );
 
                   return matcher.skip(context, matcher.endOffset);
                 } else {
-                  return matcher.error(context, "Syntax Error: Invalid assignment", matcher.startOffset + 1);
+                  return matcher.error(context, "Syntax Error: Unexpected token '.'", matcher.startOffset + 1);
                 }
-
-                return ;
               }
             })
           )
@@ -47,6 +40,6 @@ module.exports = (GT, { getLastChild, setLastChild, defineMatcher }) => {
   });
 
   return {
-    $ASSIGNMENT_EXPRESSION
+    $MEMBER_EXPRESSION
   };
 };

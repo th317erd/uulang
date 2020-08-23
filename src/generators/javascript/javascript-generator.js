@@ -34,10 +34,15 @@ class JavascriptGenerator extends GeneratorBase {
   }
 
   AssignmentExpression(token) {
-    var leftHandIdentifier  = token.left.name,
-        currentScopeName    = this.getCurrentScopeVariableName();
+    return `${this.iterateChildren(token.left)} = ${this.iterateChildren([ token.right ])};`;
+  }
 
-    return `((!('${leftHandIdentifier}' in ${currentScopeName})) ? (throw new Error('${leftHandIdentifier} is not defined')) : (${currentScopeName}['${leftHandIdentifier}'] = ${this.iterateChildren([ token.right ])})`;
+  MemberExpression(token) {
+    if (token.object.typeName === 'MemberExpression') {
+      return `${this.MemberExpression(token.object)}['${token.property.name}']`;
+    } else {
+      return `${this.Identifier(token.object)}['${token.property.name}']`;
+    }
   }
 
   VariableDeclarator(token) {
