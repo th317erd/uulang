@@ -1,29 +1,39 @@
-module.exports = (GT, { getLastChild, setLastChild, defineMatcher }) => {
+module.exports = (GT, { defineMatcher }) => {
   const $MEMBER_EXPRESSION = defineMatcher('MemberExpression', (ParentClass) => {
     return class FunctionBodyMatcher extends ParentClass {
       constructor(opts) {
         super(opts);
 
         const {
-          $DISCARD,
           $EQUALS,
+          $OPTIONAL,
           $IDENTIFIER,
           $PROGRAM
         } = GT;
 
         this.setMatcher(
           $PROGRAM(
-            $DISCARD($EQUALS('.', { typeName: 'AccessOperator' })),
+            //$OPTIONAL($IDENTIFIER()),
+            $EQUALS('.', { typeName: 'AccessOperator' }),
             $IDENTIFIER(),
             this.getMatcherOptions({
               finalize: ({ matcher, token, context }) => {
-                var lastToken = getLastChild(context.parentScope);
+                // if (token.children[0].typeName === 'Identifier') {
+                //   token.defineProperties({
+                //     object: token.children[0],
+                //     property: token.children[2]
+                //   });
+
+                //   return token;
+                // }
+
+                var lastToken = context.parentScope && context.parentScope.getLastChild();
                 if (lastToken && (lastToken.typeName === 'Identifier' || lastToken.typeName === 'MemberExpression')) {
-                  setLastChild(context.parentScope,
+                  context.parentScope.setLastChild(
                     matcher.createToken(token.getSourceRange(), {
                       typeName: matcher.getTypeName(),
                       object: lastToken,
-                      property: token.children[0],
+                      property: token.children[1],
                     })
                   );
 

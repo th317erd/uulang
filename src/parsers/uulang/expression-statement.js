@@ -1,5 +1,5 @@
 module.exports = (GT, { defineMatcher }) => {
-  const $EXPRESSION = defineMatcher('ExpressionStatement', (ParentClass) => {
+  const $EXPRESSION_STATEMENT = defineMatcher('ExpressionStatement', (ParentClass) => {
     return class ExpressionMatcher extends ParentClass {
       constructor(_opts) {
         var opts = _opts || {};
@@ -7,23 +7,58 @@ module.exports = (GT, { defineMatcher }) => {
         super(opts);
 
         const {
-          $ASSIGNMENT_EXPRESSION,
-          $FUNCTION_DECLARATOR,
           $IDENTIFIER,
-          $MEMBER_EXPRESSION,
-          $OPTIONAL,
+          $LITERAL,
           $SELECT,
-          $VARIABLE_DECLARATOR
+          $LOOP,
+          $ASSIGNMENT_EXPRESSION,
+          $MEMBER_EXPRESSION
         } = GT;
 
         this.setMatcher(
-          $SELECT(
-            $OPTIONAL($ASSIGNMENT_EXPRESSION(), { typeName: 'ExpressionAssignmentExpressionOptional'}),
-            $OPTIONAL($VARIABLE_DECLARATOR(), { typeName: 'ExpressionVariableDeclaratorOptional'}),
-            $OPTIONAL($FUNCTION_DECLARATOR(), { typeName: 'ExpressionFunctionBodyOptional'}),
-            $OPTIONAL($MEMBER_EXPRESSION(), { typeName: 'ExpressionMemberExpressionOptional'}),
-            $OPTIONAL($IDENTIFIER(), { typeName: 'ExpressionIndentifierOptional'}),
-            this.getMatcherOptions()
+          $LOOP(
+            $SELECT(
+              $ASSIGNMENT_EXPRESSION(),
+              $MEMBER_EXPRESSION(),
+              $LITERAL(),
+              $IDENTIFIER(),
+              {
+                debugSkip: true,
+                optimize: ({ offset, source }) => {
+                  var char = source.charAt(offset);
+
+                  if (char === '=')
+                    return 0;
+
+                  if (char === '.')
+                    return 1;
+
+                  if (char === '-' && source.charAt(offset + 1) === '>')
+                    return false;
+
+                  if (char.match(/["\d-]/))
+                    return 2;
+
+                  if (char.match(/[_a-zA-Z]/))
+                    return 3;
+
+                  return false;
+                }
+              }
+            ),
+            this.getMatcherOptions({
+              debugSkip: true,
+              before: ({ context, token }) => {
+                context.parentScope = token;
+                return token;
+              },
+              finalize: ({ token }) => {
+                if (token.children.length > 1)
+                  return token;
+
+                return token.children[0];
+              }
+            })
           )
         );
       }
@@ -31,6 +66,6 @@ module.exports = (GT, { defineMatcher }) => {
   });
 
   return {
-    $EXPRESSION
+    $EXPRESSION_STATEMENT
   };
 };

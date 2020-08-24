@@ -22,7 +22,7 @@ module.exports = (GT, { defineMatcher }) => {
 
         super(opts);
 
-        var matcher = $MATCHES(new RegExp(`\\s{${minNumber},${(maxNumber) ? maxNumber : ''}}`), this.getMatcherOptions());
+        var matcher = $MATCHES(new RegExp(`\\s{${minNumber},${(maxNumber) ? maxNumber : ''}}`), this.getMatcherOptions({ debugSkip: true }));
 
         if (opts.optional)
           matcher = $OPTIONAL(matcher);
@@ -35,7 +35,7 @@ module.exports = (GT, { defineMatcher }) => {
     };
   });
 
-  const $_WS = defineMatcher('$_WS', (ParentClass) => {
+  const $_WS = defineMatcher('OptionalWhiteSpace', (ParentClass) => {
     return class OptionalWhiteSpaceMatcher extends ParentClass {
       constructor(opts) {
         super(Object.assign({}, opts || {}, { optional: true, discard: true }));

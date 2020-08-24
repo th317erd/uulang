@@ -11,8 +11,8 @@ module.exports = (GT, { defineMatcher }) => {
 
         this.setMatcher(
           $DISCARD(
-            $EQUALS(';', { typeName: 'EndOfStatementMatcher'}),
-            this.getMatcherOptions()
+            $EQUALS(';', 'EndOfStatementMatcher'),
+            this.getMatcherOptions({ debugSkip: 'all' })
           )
         );
       }

@@ -14,6 +14,7 @@ module.exports = (GT, { defineMatcher }) => {
             '"',
             '\\',
             this.getMatcherOptions({
+              debugSkip: 'all',
               finalize: ({ token }) => {
                 return token.defineProperties({
                   value: token.body.value

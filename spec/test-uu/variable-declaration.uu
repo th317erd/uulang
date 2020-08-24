@@ -1,2 +1,11 @@
 hello: "stuff";
+
 thing: 10;
+
+stuff: baby;
+
+other: something.else;
+
+func2: name ->{
+  test: 10;
+};

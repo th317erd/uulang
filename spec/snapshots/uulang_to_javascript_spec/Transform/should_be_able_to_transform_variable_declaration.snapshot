@@ -1,3 +1,3 @@
 (function(cs) {
-  cs['hello'] = "stuff";cs['thing'] = 10;
+  cs['hello'] = "stuff";cs['thing'] = 10;cs['stuff'] = cs['baby'];cs['other'] = cs['something']['else'];cs['func2'] = function name(cs){cs['test'] = 10;};
 })({});

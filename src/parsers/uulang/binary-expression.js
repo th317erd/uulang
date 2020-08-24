@@ -10,7 +10,7 @@ module.exports = (GT, { defineMatcher }) => {
           $EQUALS,
           $IDENTIFIER,
           $PROGRAM,
-          $EXPRESSION
+          $EXPRESSION_STATEMENT
         } = GT;
 
         this.setMatcher(
@@ -19,7 +19,7 @@ module.exports = (GT, { defineMatcher }) => {
             $_WS(),
             $EQUALS('=', { typeName: 'AssignmentOperator' }),
             $_WS(),
-            $EXPRESSION(),
+            $EXPRESSION_STATEMENT(),
             $_WS(),
             $END_OF_STATEMENT(),
             this.getMatcherOptions({

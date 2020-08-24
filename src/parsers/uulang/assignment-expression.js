@@ -1,4 +1,4 @@
-module.exports = (GT, { getLastChild, setLastChild, defineMatcher }) => {
+module.exports = (GT, { defineMatcher }) => {
   const $ASSIGNMENT_EXPRESSION = defineMatcher('AssignmentExpression', (ParentClass) => {
     return class FunctionBodyMatcher extends ParentClass {
       constructor(opts) {
@@ -6,24 +6,21 @@ module.exports = (GT, { getLastChild, setLastChild, defineMatcher }) => {
 
         const {
           $_WS,
-          $END_OF_STATEMENT,
           $EQUALS,
           $PROGRAM,
-          $EXPRESSION
+          $RIGHT_HAND_EXPRESSION
         } = GT;
 
         this.setMatcher(
           $PROGRAM(
             $EQUALS('=', { typeName: 'AssignmentOperator' }),
             $_WS(),
-            $EXPRESSION(),
-            $_WS(),
-            $END_OF_STATEMENT(),
+            $RIGHT_HAND_EXPRESSION(),
             this.getMatcherOptions({
               finalize: ({ matcher, token, context }) => {
-                var lastToken = getLastChild(context.parentScope);
+                var lastToken = context.parentScope && context.parentScope.getLastChild();
                 if (lastToken && (lastToken.typeName === 'Identifier' || lastToken.typeName === 'MemberExpression')) {
-                  setLastChild(context.parentScope,
+                  context.parentScope.setLastChild(
                     matcher.createToken(token.getSourceRange(), {
                       typeName: this.getTypeName(),
                       left: lastToken,

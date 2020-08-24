@@ -1,3 +1,5 @@
+const { setLastChild } = require("../parser-utils");
+
 module.exports = (GT, { defineMatcher }) => {
   const $FUNCTION_DECLARATOR = defineMatcher('FunctionDeclarator', (ParentClass) => {
     return class FunctionDeclaratorMatcher extends ParentClass {
@@ -6,9 +8,8 @@ module.exports = (GT, { defineMatcher }) => {
 
         const {
           $_WS,
-          $END_OF_STATEMENT,
-          $OPTIONAL,
           $EQUALS,
+          $OPTIONAL,
           $IDENTIFIER,
           $PROGRAM,
           $SCOPE
@@ -16,21 +17,32 @@ module.exports = (GT, { defineMatcher }) => {
 
         this.setMatcher(
           $PROGRAM(
-            $OPTIONAL($IDENTIFIER()),
-            $_WS(),
+            //$OPTIONAL($IDENTIFIER()),
+            //$_WS(),
             $EQUALS('->{', { typeName: 'FunctionScopeEntry' }),
             $SCOPE({ typeName: 'FunctionBody' }),
-            $_WS(),
             $EQUALS('}', { typeName: 'FunctionScopeExit' }),
-            $END_OF_STATEMENT(),
+
             this.getMatcherOptions({
-              finalize: ({ token }) => {
+              debugSkip: true,
+              finalize: ({ matcher, token, context }) => {
                 var scope = token.children.find((token) => (token.typeName === 'FunctionBody'));
+                token.defineProperties({ id: null, children: (scope) ? [ scope ] : [], body: scope });
 
-                if (token.children[0].typeName === 'Identifier')
-                  token.defineProperties({ id: token.children[0] });
+                // if (token.children[0].typeName === 'Identifier') {
+                //   token.defineProperties({ name: token.children[0] });
 
-                token.defineProperties({ children: [ scope ] });
+                //   return token;
+                // }
+
+                var lastToken = context.parentScope && context.parentScope.getLastChild();
+                if (lastToken && lastToken.typeName === 'Identifier') {
+                  token.defineProperties({ name: lastToken });
+
+                  context.parentScope.setLastChild(token);
+
+                  return matcher.skip(context, matcher.endOffset);
+                }
 
                 return token;
               }

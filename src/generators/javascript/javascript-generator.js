@@ -54,7 +54,7 @@ class JavascriptGenerator extends GeneratorBase {
   }
 
   FunctionDeclarator(token) {
-    var name = (token.id) ? ` ${token.id.name}` : '';
+    var name = (token.name) ? ` ${token.name.name}` : '';
     return `function${name}(${this.getCurrentScopeVariableName()}){${this.iterateChildren(token.children)}}`;
   }
 

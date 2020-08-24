@@ -1,7 +1,6 @@
 module.exports = (GT, { defineMatcher }) => {
   const {
-    $PROGRAM,
-    $OPTIONAL,
+    $SELECT,
     $STRING_LITERAL,
     $NUMERIC_LITERAL
   } = GT;
@@ -12,12 +11,10 @@ module.exports = (GT, { defineMatcher }) => {
         super(opts);
 
         this.setMatcher(
-          $PROGRAM(
-            $OPTIONAL($STRING_LITERAL(), { typeName: 'LiteralStringOptional'}),
-            $OPTIONAL($NUMERIC_LITERAL(), { typeName: 'LiteralNumericOptional'}),
-            this.getMatcherOptions({
-              finalize: ({ token }) => token.children[0]
-            }, this.getOptions())
+          $SELECT(
+            $STRING_LITERAL(),
+            $NUMERIC_LITERAL(),
+            this.getMatcherOptions()
           )
         );
       }

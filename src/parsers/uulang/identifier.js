@@ -12,7 +12,8 @@ module.exports = (GT, { defineMatcher }) => {
           $MATCHES(
             /[a-zA-Z_][a-zA-Z0-9_]+/,
             this.getMatcherOptions({
-              finalize: ({ context, token }) => {
+              debugSkip: 'all',
+              finalize: ({ token }) => {
                 return token.defineProperties({
                   name: token[0]
                 });

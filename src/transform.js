@@ -33,7 +33,7 @@ function transform(_source, _opts, cb) {
           fileInfoStr   = `${parser.getOptions().fileName}[${info.startLine}:${info.startColumn}]`,
           errorMessage  = `${fileInfoStr}: ${result.message}:`[colors[0]];
 
-      return `${errorMessage} ${sourceStr.substring(sourceRange.start - 10, sourceRange.start)}${issueStr}${sourceStr.substring(sourceRange.end, sourceRange.end + 10)}`;
+      return `${errorMessage} ${sourceStr.substring(sourceRange.start - 10, sourceRange.start)}${issueStr}${sourceStr.substring(sourceRange.end, sourceRange.end + 10)}\n${result.stack}`;
     };
 
     const prettyPrintWarning = (warning) => {

@@ -10,8 +10,9 @@ module.exports = (GT, { defineMatcher }) => {
 
         this.setMatcher(
           $MATCHES(
-            /[\d.-]+/,
+            /-?\d+(\.\d+)?([Ee]-?\d+)?/,
             this.getMatcherOptions({
+              debugSkip: 'all',
               finalize: ({ token }) => {
                 return token.defineProperties({
                   value: token[0]

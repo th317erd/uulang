@@ -23,32 +23,7 @@ function get(obj, key, defaultValue) {
   return (isFalsy(obj)) ? defaultValue : value;
 }
 
-function getLastChild(token) {
-  if (!token)
-    return;
-
-  if (!token.children)
-    return;
-
-  return token.children[token.children.length - 1];
-}
-
-function setLastChild(token, value) {
-  if (!token)
-    return;
-
-  if (!token.children)
-    return;
-
-  if (!token.children.length)
-    token.children.push(value);
-  else
-    token.children[token.children.length - 1] = value;
-}
-
 module.exports = {
   finalize,
-  get,
-  getLastChild,
-  setLastChild
+  get
 };
