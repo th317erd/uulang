@@ -63,7 +63,6 @@ describe("Transform", function() {
       expect(token instanceof Token).toBe(true);
 
       var generatedResult = generator.generate(token);
-      debugger;
       expect(generatedResult).toMatchSnapshot();
 
       done();
@@ -78,7 +77,7 @@ describe("Transform", function() {
       }
 
       expect(token instanceof Token).toBe(true);
-      debugger;
+
       var generatedResult = generator.generate(token);
       expect(generatedResult).toMatchSnapshot();
 

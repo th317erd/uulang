@@ -1,5 +1,5 @@
 module.exports = (GT, { defineMatcher }) => {
-  const $RIGHT_HAND_EXPRESSION = defineMatcher('ExpressionStatement', (ParentClass) => {
+  const $RIGHT_HAND_EXPRESSION = defineMatcher('RightHandExpressionStatement', (ParentClass) => {
     return class ExpressionMatcher extends ParentClass {
       constructor(_opts) {
         var opts = _opts || {};
@@ -7,38 +7,40 @@ module.exports = (GT, { defineMatcher }) => {
         super(opts);
 
         const {
-          $_WS,
           $SELECT,
           $LOOP,
-          $EXPRESSION_STATEMENT,
-          $FUNCTION_DECLARATOR
+          $FUNCTION_DECLARATOR,
+          $EXPRESSION_STATEMENT
         } = GT;
 
         this.setMatcher(
           $LOOP(
             $SELECT(
-              $_WS(),
-              $EXPRESSION_STATEMENT(),
               $FUNCTION_DECLARATOR(),
-              {
-                debugSkip: true,
-              }
+              $EXPRESSION_STATEMENT(),
+              { debugSkip: true }
             ),
             this.getMatcherOptions({
               debugSkip: true,
               before: ({ context, token }) => {
                 context.parentScope = token;
                 return token;
-              },
-              finalize: ({ token }) => {
-                if (token.children.length > 1)
-                  return token;
-
-                return token.children[0];
               }
             })
           )
         );
+      }
+
+      respond(context) {
+        var result = super.respond(context);
+        if (!this.isToken(result) || this.isSkipToken(result))
+          return result;
+
+        var token = result;
+        if (token.children.length > 1)
+          return token;
+
+        return token.children[0];
       }
     };
   });

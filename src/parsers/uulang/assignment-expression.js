@@ -13,32 +13,36 @@ module.exports = (GT, { defineMatcher }) => {
 
         this.setMatcher(
           $PROGRAM(
-            $EQUALS('=', { typeName: 'AssignmentOperator' }),
+            $EQUALS('=', 'AssignmentOperator'),
             $_WS(),
             $RIGHT_HAND_EXPRESSION(),
-            this.getMatcherOptions({
-              finalize: ({ matcher, token, context }) => {
-                var lastToken = context.parentScope && context.parentScope.getLastChild();
-                if (lastToken && (lastToken.typeName === 'Identifier' || lastToken.typeName === 'MemberExpression')) {
-                  context.parentScope.setLastChild(
-                    matcher.createToken(token.getSourceRange(), {
-                      typeName: this.getTypeName(),
-                      left: lastToken,
-                      operator: token.children[0].value,
-                      right: token.children[1]
-                    })
-                  );
-
-                  return matcher.skip(context, matcher.endOffset);
-                } else {
-                  return matcher.error(context, "Syntax Error: Invalid assignment", matcher.startOffset + 1);
-                }
-
-                return ;
-              }
-            })
+            this.getMatcherOptions({ debugSkip: true })
           )
         );
+      }
+
+      respond(context) {
+        var result = super.respond(context);
+        if (!this.isToken(result) || this.isSkipToken(result))
+          return result;
+
+        var token     = result,
+            lastToken = context.parentScope && context.parentScope.getLastChild();
+
+        if (lastToken && ([ 'Identifier', 'MemberExpression', 'FunctionDeclarator', 'AssignmentExpression' ].indexOf(lastToken.typeName) >= 0)) {
+          context.parentScope.setLastChild(
+            this.createToken(token.getSourceRange(), {
+              typeName: this.getTypeName(),
+              left: lastToken,
+              operator: token.children[0].value,
+              right: token.children[1]
+            })
+          );
+
+          return this.skip(context, this.endOffset);
+        } else {
+          return this.error(context, "Syntax Error: Invalid assignment", this.startOffset + 1);
+        }
       }
     };
   });

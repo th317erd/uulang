@@ -6,7 +6,6 @@ module.exports = (GT, { defineMatcher }) => {
 
         const {
           $_WS,
-          $IDENTIFIER,
           $SELECT,
           $LOOP,
           $END_OF_STATEMENT,
@@ -19,12 +18,25 @@ module.exports = (GT, { defineMatcher }) => {
             $SELECT(
               $_WS(),
               $END_OF_STATEMENT(),
-              $EXPRESSION_STATEMENT(),
               $DECLARATOR_STATEMENT(),
-              { debugSkip: true }
+              $EXPRESSION_STATEMENT(),
+              {
+                debugSkip: true,
+                optimize: ({ offset, source, index }) => {
+                  var char = source.charAt(offset);
+
+                  if (char === ';')
+                    return 1;
+
+                  if (char.match(/\s+/))
+                    return 0;
+
+                  return (index < 2) ? 2 : undefined;
+                }
+              }
             ),
             this.getMatcherOptions({
-              debug: false,
+              debugSkip: true,
               before: ({ context, token }) => {
                 context.parentScope = token;
                 return token;

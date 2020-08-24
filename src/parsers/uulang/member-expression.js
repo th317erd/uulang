@@ -13,38 +13,34 @@ module.exports = (GT, { defineMatcher }) => {
 
         this.setMatcher(
           $PROGRAM(
-            //$OPTIONAL($IDENTIFIER()),
             $EQUALS('.', { typeName: 'AccessOperator' }),
             $IDENTIFIER(),
-            this.getMatcherOptions({
-              finalize: ({ matcher, token, context }) => {
-                // if (token.children[0].typeName === 'Identifier') {
-                //   token.defineProperties({
-                //     object: token.children[0],
-                //     property: token.children[2]
-                //   });
-
-                //   return token;
-                // }
-
-                var lastToken = context.parentScope && context.parentScope.getLastChild();
-                if (lastToken && (lastToken.typeName === 'Identifier' || lastToken.typeName === 'MemberExpression')) {
-                  context.parentScope.setLastChild(
-                    matcher.createToken(token.getSourceRange(), {
-                      typeName: matcher.getTypeName(),
-                      object: lastToken,
-                      property: token.children[1],
-                    })
-                  );
-
-                  return matcher.skip(context, matcher.endOffset);
-                } else {
-                  return matcher.error(context, "Syntax Error: Unexpected token '.'", matcher.startOffset + 1);
-                }
-              }
-            })
+            this.getMatcherOptions({ debugSkip: true })
           )
         );
+      }
+
+      respond(context) {
+        var result = super.respond(context);
+        if (!this.isToken(result) || this.isSkipToken(result))
+          return result;
+
+        var token = result;
+
+        var lastToken = context.parentScope && context.parentScope.getLastChild();
+        if (lastToken && (lastToken.typeName === 'Identifier' || lastToken.typeName === 'MemberExpression')) {
+          context.parentScope.setLastChild(
+            this.createToken(token.getSourceRange(), {
+              typeName: this.getTypeName(),
+              object: lastToken,
+              property: token.children[1]
+            })
+          );
+
+          return this.skip(context, this.endOffset);
+        } else {
+          return this.error(context, "Syntax Error: Unexpected token '.'", this.startOffset + 1);
+        }
       }
     };
   });

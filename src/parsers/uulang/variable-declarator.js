@@ -13,29 +13,34 @@ module.exports = (GT, { defineMatcher }) => {
 
         this.setMatcher(
           $PROGRAM(
-            $EQUALS(':', { typeName: 'AssignmentOperator' }),
+            $EQUALS(':', 'AssignmentOperator'),
             $_WS(),
             $RIGHT_HAND_EXPRESSION(),
-            this.getMatcherOptions({
-              debugSkip: true,
-              finalize: ({ context, matcher, token }) => {
-                var lastToken = context.parentScope && context.parentScope.getLastChild();
-                if (lastToken && lastToken.typeName === 'Identifier') {
-                  token.defineProperties({
-                    id: lastToken,
-                    init: token.children[1]
-                  });
-
-                  context.parentScope.setLastChild(token);
-
-                  return matcher.skip(context, matcher.endOffset);
-                } else {
-                  return matcher.error(context, "Syntax Error: Unexpected token ':'", matcher.startOffset + 1);
-                }
-              }
-            })
+            this.getMatcherOptions({ debugSkip: true })
           )
         );
+      }
+
+      respond(context) {
+        var result = super.respond(context);
+        if (!this.isToken(result) || this.isSkipToken(result))
+          return result;
+
+        var token = result;
+
+        var lastToken = context.parentScope && context.parentScope.getLastChild();
+        if (lastToken && lastToken.typeName === 'Identifier') {
+          token.defineProperties({
+            id: lastToken,
+            init: token.children[1]
+          });
+
+          context.parentScope.setLastChild(token);
+
+          return this.skip(context, this.endOffset);
+        } else {
+          return this.error(context, "Syntax Error: Unexpected token ':'", this.startOffset + 1);
+        }
       }
     };
   });

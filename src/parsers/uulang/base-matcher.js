@@ -18,31 +18,18 @@ function buildBaseMatcher(Adextopa) {
       });
     }
 
-    getMatcherOptions(_opts, extraOpts) {
-      var opts          = _opts || {},
-          superOptions  = this.getOptions(),
-          finalize      = opts.finalize;
-
-      return Object.assign({ typeName: this.getTypeName() }, opts, superOptions, {
-        finalize: Utils.finalize((args) => {
-          var result = args.token;
-
-          if (typeof finalize === 'function')
-            result = finalize.call(this, args);
-
-          if (!(result instanceof Token))
-            return result;
-
-          if (typeof superOptions.finalize === 'function')
-            result = superOptions.finalize.call(this, Object.assign({}, args, { token: result }));
-
-          return result;
-        })
-      }, extraOpts);
+    getMatcherOptions(opts) {
+      return Object.assign({ typeName: this.getTypeName() }, this.getOptions(), opts || {});
     }
 
     respond(context) {
-      return this._matcher.exec(this.getParser(), this.getSourceRange(), context);
+      var result = this._matcher.exec(this.getParser(), this.getSourceRange(), context);
+      if (!this.isToken(result))
+        return result;
+
+      this.endOffset = result.getSourceRange().end;
+
+      return result;
     }
   };
 

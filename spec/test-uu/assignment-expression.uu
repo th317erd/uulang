@@ -1,2 +1,6 @@
 name=name2;
 one.two=three;
+one.two=three.four;
+func = name ->{
+  stuff = "derp";
+};

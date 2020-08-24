@@ -13,11 +13,7 @@ module.exports = (GT, { defineMatcher }) => {
             /[a-zA-Z_][a-zA-Z0-9_]+/,
             this.getMatcherOptions({
               debugSkip: 'all',
-              finalize: ({ token }) => {
-                return token.defineProperties({
-                  name: token[0]
-                });
-              }
+              finalize: ({ token }) => token.defineProperties({ name: token[0] })
             })
           )
         );
