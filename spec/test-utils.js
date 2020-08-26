@@ -9,61 +9,14 @@ function loadTestSource(name) {
   return FileSystem.readFileSync(fullFileName, 'utf8');
 }
 
-function getSnapShotInfo() {
+function getSnapShotInfo(testName) {
   const fsSafeName = (name) => {
     return name.replace(/\W+/g, '_');
   };
 
-  var error       = new Error(),
-      stack       = error.stack.split(/\n/g).slice(1),
-      stackFiles  = stack.map((item) => item.replace(/.*?\(?([^\s()]+)\)?$/, (m, fileName) => fileName)),
-      specFile    = stackFiles.find((item) => (/\/spec\/.*-spec\.js(?::\d*:\d*$)?/).test(item)),
-      spec        = (() => {
-        var lineNumber,
-            fileName;
-
-        fileName = specFile.replace(/:(\d+):(\d+)$/, (m, line, column) => {
-          lineNumber = parseInt(line, 10);
-          return '';
-        });
-
-        return {
-          lineNumber,
-          fileName
-        };
-      })(),
-      fileContents    = FileSystem.readFileSync(spec.fileName, 'utf8'),
-      chunks          = fileContents.split(/\n/),
-      relevantChunks  = chunks.slice(0, spec.lineNumber);
-
-  var specName = ((fileName) => {
-    var names = [],
-        stop  = false,
-        spaceLength;
-
-    for (var i = relevantChunks.length - 1; i >= 0; i--) {
-      var chunk = relevantChunks[i];
-      chunk.replace(/^(\s*)(f?describe|f?it)\s*\(\s*(['"])([^\3]*?)\3/, (m, space, type, _, name) => {
-        if (!space || !space.length)
-          stop = true;
-
-        if (!spaceLength)
-          spaceLength = space.length;
-        else if (space.length >= spaceLength)
-          return m;
-
-        names.push(fsSafeName(name));
-      });
-
-      if (stop)
-        break;
-    }
-
-    return names.concat(fsSafeName(Path.basename(fileName, '.js'))).reverse().join('/') + '.snapshot';
-  })(spec.fileName);
-
-  var path          = Path.join(__dirname, 'snapshots', Path.dirname(specName)),
-      fullFileName  = Path.join(path, Path.basename(specName)),
+  var parts         = testName.replace(/\.uu$/, '').split('///').map(fsSafeName),
+      path          = Path.join(__dirname, 'snapshots', ...parts.slice(0, -1)),
+      fullFileName  = `${Path.join(path, parts[parts.length - 1])}.snapshot`,
       snapshotValue;
 
   try {
@@ -94,12 +47,12 @@ function showDiff(fileName, c1, c2) {
   }).join('');
 }
 
-CUSTOM_MATCHERS = {
+const CUSTOM_MATCHERS = {
   toMatchSnapshot: function(util, customEqualityTesters) {
     return {
-      compare: function(actualValue) {
+      compare: function(actualValue, expectedValue, testName) {
         try {
-          var snapshot = getSnapShotInfo();
+          var snapshot = getSnapShotInfo(testName);
           if (snapshot.value == null) {
             mkdirp.sync(snapshot.path);
 
@@ -126,15 +79,95 @@ CUSTOM_MATCHERS = {
             message: `Can not figure out snapshot name: ${e.message}`
           };
         }
-
-        return result;
       }
     };
   }
 };
 
+// wrap custom matcher call to supply extra testName argument
+function injectCustomMatchers(testName, scope) {
+  const wrapMatcher = (matcher) => {
+    if (matcher._wrapper)
+      return matcher;
+
+    var func = function(...args) {
+      return matcher.apply(this, args.concat(testName));
+    };
+
+    func._wrapper = true;
+
+    return func;
+  };
+
+  var newScope            = Object.create(scope),
+      customMatcherNames  = Object.keys(CUSTOM_MATCHERS);
+
+  for (var i = 0, il = customMatcherNames.length; i < il; i++) {
+    var name = customMatcherNames[i];
+    newScope[name] = wrapMatcher(scope[name]);
+  }
+
+  return newScope;
+};
+
+// Wrap all jasmine test methods to capture the testName
+function suite(name, callback) {
+  function modifyScope(testName, parentScope) {
+    // Always inject custom matchers
+    if (!jasmineStart) {
+      jasmineStart = true;
+      beforeAll(function() {
+        jasmine.addMatchers(CUSTOM_MATCHERS);
+      });
+    }
+
+    var scope = Object.create(parentScope);
+    scope.testName = testName;
+
+    return scope;
+  }
+
+  const definerWrapHelper = (method) => {
+    return function(unitName, callback) {
+      var previousTestName  = currentTestName,
+          thisTestName      = currentTestName = [ currentTestName, unitName ].join('///');
+
+      const injectedCallback = (callback.length) ? function(done) {
+        currentTestName = thisTestName;
+        return callback.apply(modifyScope(thisTestName, this), arguments);
+      } : function() {
+        currentTestName = thisTestName;
+        return callback.apply(modifyScope(thisTestName, this), arguments);
+      };
+
+      var result = method.call(this, name, injectedCallback);
+
+      currentTestName = previousTestName;
+
+      return result;
+    };
+  };
+
+  var jasmineStart    = false,
+      currentTestName = name;
+
+  const functionalWrapHelper = (method) => {
+    return function() {
+      var ret = method.apply(this, arguments);
+      return injectCustomMatchers(currentTestName, ret);
+    };
+  };
+
+  callback({
+    it: definerWrapHelper(it),
+    fit: definerWrapHelper(fit),
+    describe: definerWrapHelper(describe),
+    fdescribe: definerWrapHelper(fdescribe),
+    expect: functionalWrapHelper(expect)
+  });
+}
 
 module.exports = {
   loadTestSource,
-  CUSTOM_MATCHERS
+  suite
 };

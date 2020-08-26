@@ -1,15 +1,17 @@
 require('colors');
 
-const { CUSTOM_MATCHERS }       = require('./test-utils');
-
+const FileSystem                = require('fs');
+const Path                      = require('path');
+const { suite }                 = require('./test-utils');
 const { Token }                 = require('adextopa'),
       { loadTestSource }        = require('./test-utils'),
       { Generators, transform } = require('./lib');
 
 const { JavascriptGenerator }   = Generators;
 
-function transformFile(fileName, callback) {
-  var source    = loadTestSource(fileName),
+function transformFile(_fileName, callback) {
+  var fileName  = _fileName.replace(/\.uu$/, ''),
+      source    = loadTestSource(fileName),
       generator = new JavascriptGenerator();
 
   transform(source, { fileName: `${fileName}.uu`, debug: false, debugLevel: 1 }, (err, token) => {
@@ -17,71 +19,26 @@ function transformFile(fileName, callback) {
   });
 }
 
-describe("Transform", function() {
-  beforeAll(function() {
-    jasmine.addMatchers(CUSTOM_MATCHERS);
-  });
+suite('UULang', ({ describe, it, fdescribe, fit, expect }) => {
+  describe("Transform", function() {
+    var files = FileSystem.readdirSync(Path.join(__dirname, 'test-uu'));
+    files.forEach((fileName) => {
+      it(`should be able to transform ${fileName}`, function(done) {
+        transformFile(fileName, (err, generator, token) => {
+          if (err) {
+            fail(err);
+            return done();
+          }
 
-  it("should be able to transform variable-declaration", function(done) {
-    transformFile('variable-declaration', (err, generator, token) => {
-      if (err) {
-        fail(err);
-        return done();
-      }
+          expect(token instanceof Token).toBe(true);
 
-      expect(token instanceof Token).toBe(true);
-      var generatedResult = generator.generate(token);
-      expect(generatedResult).toMatchSnapshot();
+          var generatedResult = generator.generate(token);
+          expect(generatedResult).toMatchSnapshot(this);
 
-      done();
-    });
-  });
-
-  it("should be able to transform function-declaration", function(done) {
-    transformFile('function-declaration', (err, generator, token) => {
-      if (err) {
-        fail(err);
-        return done();
-      }
-
-      expect(token instanceof Token).toBe(true);
-
-      var generatedResult = generator.generate(token);
-      expect(generatedResult).toMatchSnapshot();
-
-      done();
-    });
-  });
-
-  it("should be able to transform assignment-expression", function(done) {
-    transformFile('assignment-expression', (err, generator, token) => {
-      if (err) {
-        fail(err);
-        return done();
-      }
-
-      expect(token instanceof Token).toBe(true);
-
-      var generatedResult = generator.generate(token);
-      expect(generatedResult).toMatchSnapshot();
-
-      done();
-    });
-  });
-
-  it("should be able to transform member-expression", function(done) {
-    transformFile('member-expression', (err, generator, token) => {
-      if (err) {
-        fail(err);
-        return done();
-      }
-
-      expect(token instanceof Token).toBe(true);
-
-      var generatedResult = generator.generate(token);
-      expect(generatedResult).toMatchSnapshot();
-
-      done();
+          done();
+        });
+      });
     });
   });
 });
+
